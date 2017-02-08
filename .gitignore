@@ -1,0 +1,63 @@
+# Web
+# General
+*.jar
+*.war
+*.o
+*.lib
+*.a
+*.so
+*.so.*
+*.out
+*.log
+
+# Maven
+target/
+dependency-reduced-pom.xml
+
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Sonar
+sonar-project.properties
+.sonar/*
+
+# Eclipse
+*.pydevproject
+.project
+.metadata
+bin/**
+tmp/**
+tmp/**/*
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.classpath
+.settings/
+.loadpath
+
+# NetBeans
+nb*.xml
+
+# External tool builders
+.externalToolBuilders/
+
+# Locally stored "Eclipse launch configurations"
+*.launch
+
+# CDT-specific
+.cproject
+
+# PDT-specific
+.buildpath
+
+# Generated properties
+git.properties
+*.RData
+*.Rproj
+.Rproj.user
+/src/test/java/diva/genome/storage/hbase/allele/count/HbaseTableMapperTest.java
