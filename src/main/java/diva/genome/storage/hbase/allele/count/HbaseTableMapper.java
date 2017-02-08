@@ -1,13 +1,11 @@
 package diva.genome.storage.hbase.allele.count;
 
-import diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator;
+import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseAppendGroupedConverter;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Append;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.opencb.biodata.models.variant.Variant;
-import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
-import diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableMapReduce;
 
@@ -225,23 +223,20 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
             getLog().info("Fill no-calls ... ");
             alleleCalculator.fillNoCalls(this.currentIndexingSamples, ctx.getStartPos(), ctx.getNextStartPos());
             getLog().info("Calculate sparse ... ");
-            alleleCalculator.onlyLeaveSparseRepresentation(startPos, nextStartPos);
+            alleleCalculator.onlyLeaveSparseRepresentation(startPos, nextStartPos, false, false);
 //            printStats(alleleCalculator);
 
             ctx.getContext().getCounter(COUNTER_GROUP_NAME, "VARIANTS_FROM_ARCHIVE").increment(countVariants.get());
 
-            AlleleCountToHBaseConverter converter =
-                    new AlleleCountToHBaseConverter(getHelper().getColumnFamily(), studyId);
-            List<Append> appends = new ArrayList<>();
-            /* Convert Reference rows */
-            alleleCalculator.forEachPosition((position, count) ->
-                    appends.add(converter.convert(ctx.getChromosome(), position, count))
-            );
-            /* Convert Variant rows */
-            alleleCalculator.forEachVariantPosition(position -> alleleCalculator.forEachVariant(position, (var, count) -> {
-                appends.add(converter.convert(ctx.getChromosome(), position, var, count));
-            }));
+            AlleleCountToHBaseAppendGroupedConverter converter =
+                    new AlleleCountToHBaseAppendGroupedConverter(getHelper().getColumnFamily());
 
+            Collection<Append> appends =
+                    converter.convert(ctx.getChromosome(),
+                /* Convert Reference rows */
+                            alleleCalculator.buildReferenceMap(),
+                /* Convert Variant rows */
+                            alleleCalculator.buildVariantMap());
             /* Submit */
             ctx.getContext().getCounter(COUNTER_GROUP_NAME, "append-created").increment(appends.size());
             getLog().info("Submit {} appends ... ", appends.size());

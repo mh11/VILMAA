@@ -19,9 +19,18 @@
         <phoenix.version>4.7.0.2.5.0.0-1245</phoenix.version>
         <avro.version>1.7.7</avro.version>
         <google.protobuf>3.1.0</google.protobuf> <!-- DO NOT UPGRADE -->
+        <google.grpc>1.0.1</google.grpc>
         <junit.version>4.12</junit.version>
         <slf4j.version>1.7.21</slf4j.version>
     </properties>
+
+    <developers>
+        <developer>
+            <id>mh11</id>
+            <name>Matthias</name>
+            <email>mh719+git@cam.ac.uk</email>
+        </developer>
+    </developers>
 
     <dependencyManagement>
         <dependencies>
@@ -291,16 +300,19 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <testSourceDirectory>src/test/java</testSourceDirectory>
+
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.4.0.Final</version>
+            </extension>
+        </extensions>
 
         <pluginManagement>
             <plugins>
@@ -316,7 +328,6 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -350,6 +361,26 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>0.5.0</version>
+                <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:${google.protobuf}:exe:${os.detected.classifier}</protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${google.grpc}:exe:${os.detected.classifier}</pluginArtifact>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>compile-custom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
         </plugins>
     </build>
 

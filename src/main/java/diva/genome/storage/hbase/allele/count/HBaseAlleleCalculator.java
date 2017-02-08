@@ -123,6 +123,20 @@ public class HBaseAlleleCalculator {
     }
 
 
+    public Map<Integer,Map<String,AlleleCountPosition>> buildVariantMap() {
+        Map<Integer,Map<String,AlleleCountPosition>> map = new HashMap<>();
+        this.forEachVariantPosition(position -> this.forEachVariant(position, (var, count) ->
+                map.computeIfAbsent(position, x -> new HashMap<>()).put(var, count)
+        ));
+        return map;
+    }
+
+    public Map<Integer, AlleleCountPosition> buildReferenceMap() {
+        Map<Integer, AlleleCountPosition> map = new HashMap<>();
+        this.forEachPosition((position, count) -> map.put(position, count));
+        return map;
+    }
+
     public void forEachPosition(BiConsumer<Integer, AlleleCountPosition> consumer) {
         Set<Integer> positions = new HashSet<>();
         positions.addAll(this.referenceToGtToSamples.keySet());
@@ -387,9 +401,9 @@ public class HBaseAlleleCalculator {
         return start >= this.region.getLeft() && start < this.region.getRight();
     }
 
-    public void onlyLeaveSparseRepresentation(int startPos, int nextStartPos) {
+    public void onlyLeaveSparseRepresentation(int startPos, int nextStartPos, boolean removePass, boolean removeHomRef) {
         for (int i = startPos; i < nextStartPos; i++) {
-            onlyLeaveSparseRepresentation(i);
+            onlyLeaveSparseRepresentation(i, removePass, removeHomRef);
         }
         Predicate<Integer> outOfRangeFilter = i -> i < startPos || i >= nextStartPos;
 
@@ -405,10 +419,14 @@ public class HBaseAlleleCalculator {
         outOfRange.forEach(i -> map.remove(i));
     }
 
-    private void onlyLeaveSparseRepresentation(int position) {
+    private void onlyLeaveSparseRepresentation(int position, boolean removePass, boolean removeHomRef) {
         // remove HOM_REF variants
-        getReference(position).remove(2);
-        this.passPosition.remove(position);
+        if (removeHomRef) {
+            getReference(position).remove(2);
+        }
+        if (removePass) {
+            this.passPosition.remove(position);
+        }
         if (this.referenceToGtToSamples.get(position).isEmpty()) {
             this.referenceToGtToSamples.remove(position);
         }
@@ -456,5 +474,4 @@ public class HBaseAlleleCalculator {
         return studyEntry.getFiles().get(0).getAttributes()
                 .getOrDefault(ANNOTATION_FILTER, DEFAULT_ANNOTATION_FILTER_VALUE);
     }
-
 }
