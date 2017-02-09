@@ -1,31 +1,33 @@
 package diva.genome.storage.hbase.allele.count.converter;
 
 import com.google.protobuf.MessageLite;
-import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.model.protobuf.AlleleMap;
 import diva.genome.storage.hbase.allele.model.protobuf.AlternateCount;
 import diva.genome.storage.hbase.allele.model.protobuf.ReferenceCountHBaseProto;
 import diva.genome.storage.hbase.allele.model.protobuf.SampleList;
-import org.apache.hadoop.hbase.util.Bytes;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by mh719 on 08/02/2017.
  */
 public class AlleleCountPositionToAlleleCountHBaseProto {
-    private volatile ByteOutputStream bout;
+    private volatile ByteArrayOutputStream bout;
     public AlleleCountPositionToAlleleCountHBaseProto() {
-        this.bout = new ByteOutputStream();
+        this.bout = new ByteArrayOutputStream();
     }
 
     private byte[] toBytes(MessageLite msg) {
         bout.reset();
         try {
             msg.writeDelimitedTo(bout);
-            return Bytes.copy(bout.getBytes(), 0, bout.getCount());
+            return bout.toByteArray();
         } catch (IOException e) {
             throw new IllegalStateException("Problems during convertion from Proto to byte[]", e);
         }
