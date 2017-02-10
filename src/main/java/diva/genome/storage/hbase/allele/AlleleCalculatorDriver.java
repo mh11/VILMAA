@@ -4,6 +4,8 @@ import diva.genome.storage.hbase.allele.count.HbaseTableMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
@@ -92,7 +94,9 @@ public class AlleleCalculatorDriver extends AbstractVariantTableDriver {
     @Override
     protected void initMapReduceJob(String inTable, String outTable, Job job, Scan scan, boolean addDependencyJar) throws IOException {
         getLog().info("Read from {} and write to {} ...", inTable, outTable);
-        createVariantTableIfNeeded(getHelper(), outTable);
+        try (Connection con = ConnectionFactory.createConnection(getHelper().getConf())) {
+            createHBaseTable(getHelper(), outTable, con); // NO PHOENIX needed!!!!
+        }
         TableMapReduceUtil.initTableMapperJob(
                 inTable,      // input table
                 scan,             // Scan instance to control CF and attribute selection

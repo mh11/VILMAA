@@ -39,8 +39,8 @@ public class AlleleTablePhoenixHelper {
 
         addColumns(con, table, PUnsignedIntArray.INSTANCE,
                 FILTER_FAIL,
-//                Bytes.toString(buildQualifier(REFERENCE_PREFIX, 1)), // REF_HET
-//                Bytes.toString(buildQualifier(REFERENCE_PREFIX, -1)), // NO CALL
+                Bytes.toString(buildQualifier(REFERENCE_PREFIX, 1)), // REF_HET
+                Bytes.toString(buildQualifier(REFERENCE_PREFIX, -1)), // NO CALL
                 Bytes.toString(buildQualifier(VARIANT_PREFIX, 1)), // VAR HET
                 Bytes.toString(buildQualifier(VARIANT_PREFIX, 2)), // VAR HOM
                 Bytes.toString(buildQualifier(VARIANT_PREFIX, DEL_SYMBOL, 1)), // DEL overlap
