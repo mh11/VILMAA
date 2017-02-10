@@ -19,9 +19,13 @@ import static org.junit.Assert.*;
 public class HBaseAlleleCalculatorTest {
 
     public static Variant getVariant(String var, String studyId, String sample, String gt, Map<String, String> fileValues) {
+        return getVariant(var, studyId, 1, sample, gt, fileValues);
+    }
+
+    public static Variant getVariant(String var, String studyId, Integer fileId,  String sample, String gt, Map<String, String> fileValues) {
         Variant b = new Variant(var);
         StudyEntry sb = new StudyEntry(studyId, studyId);
-        sb.setFiles(Collections.singletonList(new FileEntry("1", "1", new HashedMap())));
+        sb.setFiles(Collections.singletonList(new FileEntry(fileId + "", "1", new HashedMap())));
         b.setStudies(Collections.singletonList(sb));
         sb.setFormat(Arrays.asList("GT"));
         Map<String, Integer> samplePos = new HashMap<>();
@@ -29,13 +33,13 @@ public class HBaseAlleleCalculatorTest {
         sb.setSamplesPosition(samplePos);
         sb.setSamplesData(Arrays.asList(Arrays.asList(gt)));
 
-        FileEntry file = new FileEntry("1",gt, fileValues);
+        FileEntry file = new FileEntry(fileId + "",gt, fileValues);
         sb.setFiles(Collections.singletonList(file));
-
         return b;
     }
 
-    @Test
+
+        @Test
     public void calculateInsertion() throws Exception {
         String studyId = "22";
         Map<String, Integer> idMapping = new HashMap<>();
@@ -412,11 +416,12 @@ public class HBaseAlleleCalculatorTest {
         assertEquals(map(1, 1), HBaseAlleleCalculator.getAlleleCount("./1"));
     }
 
-    public static Map<? extends Object, ? extends Object> mapObj(Object ... ints) {
-        Map map = new HashMap<>();
+    public static <K,V> Map<K, V> mapObj(K k, V v, Object ... ints) {
+        Map<K, V> map = new HashMap<>();
+        map.put(k, v);
 
         for (int i = 0; i < ints.length; i += 2) {
-            map.put( ints[i], ints[i+1]);
+            map.put((K) ints[i], (V) ints[i+1]);
         }
         return map;
     }
@@ -428,6 +433,6 @@ public class HBaseAlleleCalculatorTest {
     }
 
     public static <T> Map<T, T> map(T ... ints) {
-        return (Map<T, T>) mapObj(ints);
+        return mapObj(ints[0], ints[1], Arrays.copyOfRange(ints, 2, ints.length));
     }
 }

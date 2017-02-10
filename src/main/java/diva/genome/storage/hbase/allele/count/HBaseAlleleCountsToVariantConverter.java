@@ -13,8 +13,6 @@ import org.opencb.biodata.models.variant.avro.VariantType;
 import org.opencb.biodata.models.variant.stats.VariantStats;
 import org.opencb.biodata.tools.variant.merge.VariantMerger;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
-import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
-import diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import org.opencb.opencga.storage.hadoop.variant.converters.annotation.HBaseToVariantAnnotationConverter;
 import org.opencb.opencga.storage.hadoop.variant.converters.stats.HBaseToVariantStatsConverter;
@@ -22,6 +20,7 @@ import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
@@ -296,14 +295,26 @@ public class HBaseAlleleCountsToVariantConverter {
             return Collections.emptyMap();
         }
         Map<Integer, String> gts = new HashMap<>();
-        Map<Integer, Integer> sampleRefAllele = new HashMap<>();
+
+        BiFunction<Integer, String, String> createRefGenotype = (cnt, gt) -> {
+            if (StringUtils.equals(gt, Allele.NO_CALL_STRING) || StringUtils.isBlank(gt)) {
+                String retGt = StringUtils.repeat("0", "/", cnt);
+                if (StringUtils.isBlank(gt)) {
+                    return retGt;
+                } else {
+                    return gt + "/" + retGt;
+                }
+            }
+            return gt;
+        };
+
         bean.getReference().forEach((k, v) -> v.forEach(s -> {
             if (k.equals(NO_CALL)) {
                 v.forEach(sid -> gts.put(sid, Allele.NO_CALL_STRING));
                 return;
             }
             if (!k.equals(2)) { //only contains COUNTS
-                sampleRefAllele.put(s, k);
+                gts.put(s, createRefGenotype.apply(k, gts.get(s)));
             }
         }));
 
@@ -328,16 +339,6 @@ public class HBaseAlleleCountsToVariantConverter {
                 ids.forEach(sampleId -> {
                     // for each sample ID
                     String gt = gts.get(sampleId);
-                    if (null == gt || StringUtils.equals(gt, Allele.NO_CALL_STRING)) {
-                        Integer refCnt = sampleRefAllele.getOrDefault(sampleId, 0);
-                        for (int i = 0; i < refCnt; ++i) {
-                            if (i > 0) {
-                                gt += "/0";
-                            } else {
-                                gt = "0";
-                            }
-                        }
-                    }
                     for (int i = 0; i < alleles; i++) {
                         if (null == gt || StringUtils.equals(gt, Allele.NO_CALL_STRING)) {
                             gt = altIdx.toString();
@@ -357,7 +358,7 @@ public class HBaseAlleleCountsToVariantConverter {
         // Order GT
         sampleIds.forEach(sid -> {
             if (!gts.containsKey(sid)) {
-                gts.put(sid, "0/0");
+                gts.put(sid, createRefGenotype.apply(2, null));
             }
         });
         return gts;

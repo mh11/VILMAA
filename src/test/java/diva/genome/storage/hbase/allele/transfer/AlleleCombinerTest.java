@@ -35,7 +35,10 @@ public class AlleleCombinerTest {
     private String sampleName = "S1";
     private Integer studyIdInt = 22;
     private String studyId = studyIdInt.toString();
+    private Variant homrefOnAuto;
+    private Variant hemiref;
     private Variant snv;
+    private Variant snvOnX;
     private HBaseAlleleCalculator calculator;
     private Variant insertion;
     private Variant deletion;
@@ -49,7 +52,7 @@ public class AlleleCombinerTest {
     @Before
     public void setup() {
         this.snv = getVariant(chromosome + ":" + position + ":A:G", studyId, sampleName, "0/1", map("FILTER", "not-pass"));
-        this.calculator = new HBaseAlleleCalculator("22", (Map<String, Integer>) mapObj(sampleName, sampleId));
+        this.calculator = new HBaseAlleleCalculator("22", mapObj(sampleName, sampleId));
         this.insertion = getVariant(chromosome + ":" + position + ":-:G", studyId, sampleName, "0/1", map("FILTER", "not-pass"));
         this.deletion = getVariant(chromosome + ":" + position + ":GT:-", studyId, sampleName, "0/1", map("FILTER", "PASS"));
 
@@ -66,9 +69,12 @@ public class AlleleCombinerTest {
         this.singleStudyConfiguration.setIndexedFiles(new LinkedHashSet<>(Collections.singleton(1)));
         this.singleStudyConfiguration.setSampleIds(map(sampleName, 1));
         this.singleStudyConfiguration.setFileIds(map("file1", 1));
+        this.singleStudyConfiguration.setSamplesInFiles(mapObj(fileId, new LinkedHashSet<>(Collections.singleton(sampleId))));
 
-        this.singleStudyConfiguration.setSamplesInFiles((Map<Integer, LinkedHashSet<Integer>>) mapObj(fileId, new LinkedHashSet<>(Collections.singleton(sampleId))));
-        
+
+
+        this.homrefOnAuto = getVariant(chromosome + ":" + position + ":.:." , studyId, 2,"S2", "0/0", map("FILTER", "not-pass"));
+        this.hemiref = getVariant(chromosome + ":" + position + ":.:." , studyId, 2,"S2", "0", map("FILTER", "not-pass"));
 
         Configuration conf = new Configuration();
         VariantTableHelper.setInputTableName(conf, "input");
@@ -80,12 +86,48 @@ public class AlleleCombinerTest {
         this.variantConverter.setReturnSamples(Collections.singleton(this.sampleName));
     }
 
+    public void setupTwoSamples() {
+        this.calculator = new HBaseAlleleCalculator("22", mapObj(sampleName, sampleId, "S2", 2));
+        this.singleStudyConfiguration = new StudyConfiguration(studyIdInt, studyId);
+        this.singleStudyConfiguration.setFileIds(mapObj("file1", 1, "file2", 2));
+        this.singleStudyConfiguration.setIndexedFiles(new LinkedHashSet<>(Arrays.asList(sampleId, 2)));
+        this.singleStudyConfiguration.setSampleIds(mapObj(sampleName, 1, "S2", 2));
+        this.singleStudyConfiguration.setSamplesInFiles(mapObj(fileId, new LinkedHashSet<>(Arrays.asList(sampleId)), 2, new LinkedHashSet<>(Arrays.asList( 2))));
+
+        variantConverter = new HBaseAlleleCountsToVariantConverter(this.variantTableHelper, this.singleStudyConfiguration);
+        this.variantConverter.setReturnSamples(Arrays.asList(this.sampleName, "S2"));
+
+    }
+
+    @Test
+    public void combineRefCall() throws Exception {
+        setupTwoSamples();
+        calculator.addVariant(homrefOnAuto);
+        calculator.addVariant(snv);
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId, 2)), snv,
+                Collections.emptyMap(), mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
+        Variant variant = convertBack(this.snv, validate);
+        System.out.println("ref = " + homrefOnAuto.getImpl());
+        equalsGT("S2", "0/0", variant);
+    }
+
+    @Test
+    public void combineHemiRefCall() throws Exception {
+        setupTwoSamples();
+        calculator.addVariant(hemiref);
+        calculator.addVariant(snv);
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId, 2)), snv,
+                Collections.emptyMap(), mapObj(1, new HashSet<>(Arrays.asList(sampleId, 2))));
+        Variant variant = convertBack(this.snv, validate);
+        System.out.println("ref = " + hemiref.getImpl());
+        equalsGT("S2", "0", variant);
+    }
+
     @Test
     public void combineSNV() throws Exception {
         calculator.addVariant(snv);
         AlleleCountPosition validate = validate(new HashSet<Integer>(Arrays.asList(sampleId)), snv,
-                Collections.emptyMap(),
-                (Map<Integer, Set<Integer>>) mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
+                Collections.emptyMap(), mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
         Variant variant = convertBack(this.snv, validate);
         System.out.println("snv = " + snv.getImpl());
         equals(snv, variant);
@@ -96,12 +138,20 @@ public class AlleleCombinerTest {
     }
 
     public void equals(Variant expected, String expectedGt, Variant actual) {
-        equalsGT(expectedGt, actual);
-        assertEquals(extractFilterValue(expected), actual.getStudy(studyId).getSampleData(sampleName ,"FT"));
+        equals(expected, sampleName, expectedGt, actual);
+    }
+
+    public void equals(Variant expected, String sample, String expectedGt, Variant actual) {
+        equalsGT(sample, expectedGt, actual);
+        assertEquals(extractFilterValue(expected), actual.getStudy(studyId).getSampleData(sample ,"FT"));
     }
 
     public void equalsGT(String gt, Variant actual) {
-        assertEquals(gt, actual.getStudy(studyId).getSampleData(sampleName ,"GT"));
+        equalsGT(sampleName, gt, actual);
+    }
+
+    public void equalsGT(String sample, String gt, Variant actual) {
+        assertEquals(gt, actual.getStudy(studyId).getSampleData(sample ,"GT"));
     }
 
     public String extractFilterValue(Variant expected) {
@@ -147,7 +197,7 @@ public class AlleleCombinerTest {
         HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
         overlaps.put(deletion.getEnd(), map(sampleId, 1));
         AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId)), deletion, overlaps,
-                (Map<Integer, Set<Integer>>) mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
+                mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
 
         Variant variant = convertBack(this.deletion, validate);
         System.out.println("deletion = " + deletion.getImpl());
@@ -162,7 +212,7 @@ public class AlleleCombinerTest {
         overlaps.put(position -1, map(sampleId, 1));
         AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId)), deletionAndInsertion, overlaps,
 //                Collections.emptyMap());
-                (Map<Integer, Set<Integer>>) mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
+                mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
 
         Variant variant = convertBack(this.deletionAndInsertion, validate);
         System.out.println("deletionAndInsertion = " + deletionAndInsertion.getImpl());
@@ -187,7 +237,7 @@ public class AlleleCombinerTest {
         HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
         overlaps.put(deletion.getEnd(), map(sampleId, 1));
         AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId)), deletion, overlaps,
-                (Map<Integer, Set<Integer>>) mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
+                mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
 
         Variant variant = convertBack(this.deletion, validate);
         deletion.getStudy(studyId).getFile(fileIdString).getAttributes().put("FILTER", ".");
@@ -213,7 +263,7 @@ public class AlleleCombinerTest {
         HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
         overlaps.put(insertion.getEnd(), map(sampleId, 1));
         AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId)), insertion, overlaps,
-                (Map<Integer, Set<Integer>>) mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
+                mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
         Variant variant = convertBack(this.insertion, validate);
         System.out.println("insertion = " + insertion.getImpl());
         equals(insertion, "0/1", variant);
@@ -268,6 +318,9 @@ public class AlleleCombinerTest {
                                            Map<Integer, Map<Integer, Integer>> overlaps, Map<Integer, Set<Integer>>  expectedReference) {
         Integer position = variant.getStart();
         String chromosome = variant.getChromosome();
+
+        calculator.fillNoCalls(this.singleStudyConfiguration.getSampleIds().keySet(), this.position-5, this.position+ 5); // just in case
+        calculator.onlyLeaveSparseRepresentation(this.position-5, this.position+ 5, true, true);
 
         AlleleCountPosition varCount = calculator.buildVariantCount(position, varId);
         AlleleCountPosition refCount = calculator.buildPositionCount(position);
