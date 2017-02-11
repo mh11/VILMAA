@@ -68,7 +68,7 @@ public class AlleleCombiner {
 
                 if (toAlleleCnt == 0 && fromAllelCnt == HBaseAlleleCalculator.NO_CALL) {
                     toMap.put(sid, fromAllelCnt); // always transfer NOCALL
-                } else if (type.equals(VariantType.INSERTION)) {
+                } else if (type.equals(VariantType.INSERTION) && alternateCount.containsKey(sid)) {
                     if (toAlleleCnt == 0) {
                         if (toAltCnt > 0 && fromAllelCnt > 0) { // alt exist with high allele count
                             int value = Math.abs(toAltCnt - fromAllelCnt);
@@ -121,10 +121,15 @@ public class AlleleCombiner {
                               AlleleCountPosition from, AlleleCountPosition to,
                               Map<Integer, Integer> overlaps) {
         if (fromAlt.equals(HBaseAlleleCalculator.DEL_SYMBOL)) {
+            Map<Integer, Integer> deletions = mapSampleidToAlleleCnt(map);
+            overlaps.keySet().forEach(k -> deletions.remove(k)); // remove all known overlaps
+
             // remove current deletion information
             removeCurrentVariantCalls(overlaps, to.getAlternate());
-            // add
+            // add larger deletions
             transfer(fromAlt, mapAlleleCntToSampleid(overlaps), to);
+            // add smaller deletions as reference
+            deletions.forEach((sid, allele) -> to.getReference().computeIfAbsent(allele, k -> new ArrayList<>()).add(sid));
         } else if (BASES.contains(fromAlt)) { // A T G C
             transfer(map, to.getReference());
         } else if (fromAlt.equals(HBaseAlleleCalculator.INS_SYMBOL)) {
@@ -161,7 +166,9 @@ public class AlleleCombiner {
             // move reference count of insertions to reference count.
             from.getReference().forEach((allele, ids) -> {
                 if (allele < HBaseAlleleCalculator.NO_CALL) {
-                    to.getReference().put(((allele - HBaseAlleleCalculator.NO_CALL) * -1), ids);
+                    to.getReference()
+                            .computeIfAbsent(((allele - HBaseAlleleCalculator.NO_CALL) * -1), k -> new ArrayList<>())
+                            .addAll(ids);
                 }
             });
         } else  if (fromAlt.equals(HBaseAlleleCalculator.DEL_SYMBOL)) {

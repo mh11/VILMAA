@@ -340,7 +340,7 @@ public class HBaseAlleleCountsToVariantConverter {
                     // for each sample ID
                     String gt = gts.get(sampleId);
                     for (int i = 0; i < alleles; i++) {
-                        if (null == gt || StringUtils.equals(gt, Allele.NO_CALL_STRING)) {
+                        if (StringUtils.isBlank(gt) || StringUtils.equals(gt, Allele.NO_CALL_STRING)) {
                             gt = altIdx.toString();
                         } else {
                             gt += "/" + altIdx;
@@ -357,7 +357,7 @@ public class HBaseAlleleCountsToVariantConverter {
         mapGenotype.accept(variant.getAlternate(), bean.getAlternate());
         // Order GT
         sampleIds.forEach(sid -> {
-            if (!gts.containsKey(sid)) {
+            if (StringUtils.isBlank(gts.get(sid))) {
                 gts.put(sid, createRefGenotype.apply(2, null));
             }
         });

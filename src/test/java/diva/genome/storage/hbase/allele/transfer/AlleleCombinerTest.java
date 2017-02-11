@@ -38,13 +38,15 @@ public class AlleleCombinerTest {
     private Variant homrefOnAuto;
     private Variant hemiref;
     private Variant snv;
-    private Variant snvOnX;
+    private Variant snv2;
     private HBaseAlleleCalculator calculator;
     private Variant insertion;
     private Variant deletion;
+    private Variant deletionS2;
     private Variant deletionAndInsertion;
     private Variant insertionAndDeletion;
     private Variant insertionAndSNP;
+    private Variant snpAndInsertion;
     private StudyConfiguration singleStudyConfiguration;
     private VariantTableHelper variantTableHelper;
     private HBaseAlleleCountsToVariantConverter variantConverter;
@@ -52,9 +54,11 @@ public class AlleleCombinerTest {
     @Before
     public void setup() {
         this.snv = getVariant(chromosome + ":" + position + ":A:G", studyId, sampleName, "0/1", map("FILTER", "not-pass"));
+        this.snv2 = getVariant(chromosome + ":" + position + ":A:G", studyId, 2, "S2", "0/1", map("FILTER", "not-pass"));
         this.calculator = new HBaseAlleleCalculator("22", mapObj(sampleName, sampleId));
         this.insertion = getVariant(chromosome + ":" + position + ":-:G", studyId, sampleName, "0/1", map("FILTER", "not-pass"));
         this.deletion = getVariant(chromosome + ":" + position + ":GT:-", studyId, sampleName, "0/1", map("FILTER", "PASS"));
+        this.deletionS2 = getVariant(chromosome + ":" + position + ":GTTT:-", studyId, 2, "S2", "0/1", map("FILTER", "PASS"));
 
         this.deletionAndInsertion = getVariant(chromosome + ":" + position + ":GT:-", studyId, sampleName, "1/2", map("FILTER", "not-pass"));
         this.deletionAndInsertion.getStudy(studyId).setSecondaryAlternates(Arrays.asList(new AlternateCoordinate(chromosome, position, position-1, "", "AT", VariantType.INDEL)));
@@ -97,6 +101,56 @@ public class AlleleCombinerTest {
         variantConverter = new HBaseAlleleCountsToVariantConverter(this.variantTableHelper, this.singleStudyConfiguration);
         this.variantConverter.setReturnSamples(Arrays.asList(this.sampleName, "S2"));
 
+    }
+
+    @Test
+    public void combineDeletionAndDeletionSeparate() {
+        setupTwoSamples();
+        calculator.addVariant(deletion);
+        calculator.addVariant(deletionS2);
+        HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
+        overlaps.put(deletion.getEnd(), map(sampleId, 1));
+        overlaps.put(deletionS2.getEnd(), map(2, 1));
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId, 2)), deletion, overlaps,
+                mapObj(1, new HashSet<>(Arrays.asList(sampleId, 2))));
+
+        Variant variant = convertBack(this.deletion, validate);
+        System.out.println("deletion = " + deletion.getImpl());
+        equals(deletion, "0/1", variant);
+        equalsGT("S2", "0/2", variant);
+    }
+
+    @Test
+    public void combineDeletionAndDeletionSeparateB() {
+        setupTwoSamples();
+        calculator.addVariant(deletion);
+        calculator.addVariant(deletionS2);
+        HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
+        overlaps.put(deletionS2.getEnd(), map(2, 1));
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId, 2)), deletionS2, overlaps,
+                mapObj(1, new HashSet<>(Arrays.asList(2))));
+
+        Variant variant = convertBack(this.deletionS2, validate);
+        System.out.println("deletionS2 = " + deletionS2.getImpl());
+        equalsGT("S2", "0/1", variant);
+        equalsGT(sampleName, "0/0", variant);
+    }
+
+
+    @Test
+    public void combineInsertionAndSnpSeparate() {
+        setupTwoSamples();
+        calculator.addVariant(insertion);
+        calculator.addVariant(snv2);
+        HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
+        overlaps.put(insertion.getEnd(), map(1, 1));
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId, 2)), insertion, overlaps,
+                mapObj(1, new HashSet<>(Arrays.asList(1))));
+
+        Variant variant = convertBack(this.insertion, validate);
+        System.out.println("insertion = " + insertion.getImpl());
+        equalsGT("S2", "0/0", variant);
+        equalsGT(sampleName, "0/1", variant);
     }
 
     @Test
@@ -232,6 +286,7 @@ public class AlleleCombinerTest {
         calculator.addVariant(deletion);
         combineDeletionAndInsertionSeparate();
     }
+
 
     protected void combineDeletionAndInsertionSeparate() {
         HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
