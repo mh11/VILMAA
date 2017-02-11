@@ -327,6 +327,25 @@ public class AlleleCombinerTest {
     }
 
     @Test
+    public void combineDeletionAndDeletionInsertion() throws Exception {
+        setupTwoSamples();
+        calculator.addVariant(deletionS2);
+        calculator.addVariant(deletionAndInsertion);
+        HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
+        overlaps.put(deletionAndInsertion.getEnd(), map(sampleId, 1));
+        overlaps.put(deletionAndInsertion.getStudy(studyId).getSecondaryAlternates().get(0).getEnd(), map(sampleId, 1));
+        overlaps.put(deletionS2.getEnd(), map(2, 1));
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId, 2)), deletionS2, overlaps,
+//                Collections.emptyMap());
+                mapObj(1, new HashSet<>(Arrays.asList(2))));
+
+        Variant variant = convertBack(this.deletionS2, validate);
+        System.out.println("deletionS2 = " + deletionS2.getImpl());
+        equalsGT("S2", "0/1", variant);
+        equalsGT(sampleName, "0/0", variant);
+    }
+
+    @Test
     public void combineDeletionAndInsertionSeparateA() throws Exception {
         calculator.addVariant(deletion);
         calculator.addVariant(insertion);

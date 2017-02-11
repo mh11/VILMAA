@@ -7,6 +7,7 @@ import org.opencb.biodata.models.variant.Variant;
 import org.opencb.biodata.models.variant.avro.VariantType;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -125,18 +126,32 @@ public class AlleleCombiner {
             Map<Integer, Integer> alternate = mapSampleidToAlleleCnt(to.getAlternate());
             Map<Integer, Integer> insertions = mapSampleidToAlleleCnt(map);
             Map<Integer, Integer> toReference = mapSampleidToAlleleCnt(to.getReference());
+            Map<Integer, Integer> currOtherDels = mapSampleidToAlleleCnt(
+                    ObjectUtils.firstNonNull(from.getAltMap().get(DEL_SYMBOL), Collections.emptyMap()));
 
             // only reference calls > 0 (no NO_CALLS or INDEL ref calls)
             Map<Integer, Integer> fromReference = mapSampleidToAlleleCnt(
                     from.getReference().entrySet().stream().filter(e -> e.getKey() > 0)
                             .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue())));
-
+            AtomicBoolean hasChanged = new AtomicBoolean(false);
             insertions.forEach((sid, allele) -> { // TODO still needed?
+                if (fromReference.containsKey(sid)) {
+                    return;
+                }
                 // Transfer INDEL as Reference call
-                if (alternate.containsKey(sid) && !toReference.containsKey(sid) && !fromReference.containsKey(sid)) {
-                    to.getReference().computeIfAbsent(allele, k -> new ArrayList<>()).add(sid);
+                if (alternate.containsKey(sid) && !toReference.containsKey(sid)) {
+                    toReference.put(sid, allele);
+                    hasChanged.set(true);
+                } else if (!alternate.containsKey(sid) && currOtherDels.containsKey(sid)) {
+                    // FIX case, where Insertion + Deletion was called in one variant (SecAlt).
+                    toReference.put(sid, toReference.getOrDefault(sid, 0) + allele);
+                    hasChanged.set(true);
                 }
             });
+            if (hasChanged.get()) {
+                to.getReference().clear();
+                to.getReference().putAll(mapAlleleCntToSampleidList(toReference));
+            }
         } else {
             throw new IllegalStateException("Unexpected option. Not implemented yet: " + fromAlt);
         }
