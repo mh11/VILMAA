@@ -2,6 +2,7 @@ package diva.genome.storage.hbase.allele.exporter;
 
 import com.google.common.collect.BiMap;
 import diva.genome.storage.hbase.allele.AbstractLocalRunner;
+import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Result;
@@ -83,6 +84,10 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
 
     protected void writeVcf(Result result) {
         Variant variant = variantConverter.convert(result);
+        if (getLog().isDebugEnabled()) {
+            AlleleCountPosition convert = variantConverter.getAlleleCountConverter().convert(result);
+            getLog().debug("Convert {} from \n{} ", variant, convert.toDebugString());
+        }
         vcfDataWriter.write(Collections.singletonList(variant));
     }
 

@@ -40,7 +40,9 @@ public class AlleleCombinerTest {
     private Variant snv;
     private Variant snv2;
     private HBaseAlleleCalculator calculator;
+    private Variant reference2;
     private Variant insertion;
+    private Variant insertion2;
     private Variant deletion;
     private Variant deletionS2;
     private Variant deletionAndInsertion;
@@ -53,10 +55,12 @@ public class AlleleCombinerTest {
 
     @Before
     public void setup() {
+        this.reference2 = getVariant(chromosome + ":" + position + ":.:.", studyId, 2, "S2", "0/0", map("FILTER", "not-pass"));
         this.snv = getVariant(chromosome + ":" + position + ":A:G", studyId, sampleName, "0/1", map("FILTER", "not-pass"));
         this.snv2 = getVariant(chromosome + ":" + position + ":A:G", studyId, 2, "S2", "0/1", map("FILTER", "not-pass"));
         this.calculator = new HBaseAlleleCalculator("22", mapObj(sampleName, sampleId));
         this.insertion = getVariant(chromosome + ":" + position + ":-:G", studyId, sampleName, "0/1", map("FILTER", "not-pass"));
+        this.insertion2 = getVariant(chromosome + ":" + position + ":-:GTT", studyId, 2, "S2", "0/1", map("FILTER", "not-pass"));
         this.deletion = getVariant(chromosome + ":" + position + ":GT:-", studyId, sampleName, "0/1", map("FILTER", "PASS"));
         this.deletionS2 = getVariant(chromosome + ":" + position + ":GTTT:-", studyId, 2, "S2", "0/1", map("FILTER", "PASS"));
 
@@ -151,6 +155,23 @@ public class AlleleCombinerTest {
         System.out.println("insertion = " + insertion.getImpl());
         equalsGT("S2", "0/0", variant);
         equalsGT(sampleName, "0/1", variant);
+    }
+
+    @Test
+    public void combineInsertionAndInsertionSeparate() {
+        setupTwoSamples();
+        calculator.addVariant(insertion);
+        calculator.addVariant(insertion2);
+        calculator.addVariant(reference2);
+        HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
+        overlaps.put(insertion2.getEnd(), map(1, 1));
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId, 2)), insertion2, overlaps,
+                mapObj(1, new HashSet<>(Arrays.asList(1,2))));
+
+        Variant variant = convertBack(this.insertion2, validate);
+        System.out.println("insertion2 = " + insertion2.getImpl());
+        equalsGT("S2", "0/1", variant);
+        equalsGT(sampleName, "0/2", variant);
     }
 
     @Test
@@ -339,13 +360,13 @@ public class AlleleCombinerTest {
     }
 
     @Test
-    public void combineInsertionAndSNP() throws Exception {
+    public void combineInsertionAndSNPasSecAlt() throws Exception {
         calculator.addVariant(insertionAndSNP);
         HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
         overlaps.put(insertionAndSNP.getEnd(), map(sampleId, 1));
         overlaps.put(position -1, map(sampleId, 1));
         AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId)), insertionAndSNP, overlaps,
-                (Map<Integer, Set<Integer>>) mapObj(1, Collections.singleton(sampleId)));
+                mapObj(1, Collections.singleton(sampleId)));
         Variant variant = convertBack(this.insertionAndSNP, validate);
         assertTrue(variant.getStudy(this.studyId).getSecondaryAlternates().isEmpty());
         System.out.println("insertionAndSNP = " + insertionAndSNP.getImpl());
@@ -361,6 +382,19 @@ public class AlleleCombinerTest {
         assertTrue(variant.getStudy(this.studyId).getSecondaryAlternates().isEmpty());
         equals(insertionAndSNP, "0/1", variant);
 
+    }
+    @Test
+    public void combineInsertionAndSNPSeparate() throws Exception {
+        calculator.addVariant(insertion);
+        calculator.addVariant(snv);
+        HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
+        overlaps.put(insertion.getEnd(), map(sampleId, 1));
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId)), insertion, overlaps,
+                mapObj(1, Collections.singleton(sampleId)));
+        Variant variant = convertBack(this.insertion, validate);
+        assertTrue(variant.getStudy(this.studyId).getSecondaryAlternates().isEmpty());
+        System.out.println("insertion = " + insertion.getImpl());
+        equalsGT(sampleName, "0/1", variant);
     }
 
     protected AlleleCountPosition validate(Set<Integer> sampleIds, Variant variant,

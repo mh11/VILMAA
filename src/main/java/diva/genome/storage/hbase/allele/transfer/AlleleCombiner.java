@@ -9,6 +9,8 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
+
 /**
  * Created by mh719 on 03/02/2017.
  */
@@ -29,31 +31,30 @@ public class AlleleCombiner {
         Map<Integer, Integer> sidToAllele = fullyCovered(variant, overlaps);
         switch (type) {
             case SNV:
-                foreach(from, (k, v) -> copySnv(k, variant.getAlternate(), v, to));
+                foreach(from, (k, v) -> copySnv(k, variant.getAlternate(), v, to), variant.getAlternate());
+                copyReference(from, to);
                 break;
             case INSERTION:
-                foreach(from, (k, v) -> copyInsertion(k, v, from, to, sidToAllele));
+                foreach(from, (k, v) -> copyInsertion(k, v, from, to, sidToAllele), INS_SYMBOL);
+                copyInsertionReference(from, to);
                 break;
             case DELETION:
+                foreach(from, (k, v) -> copyDeletion(k, v, from, to, sidToAllele), DEL_SYMBOL);
+                copyReference(from, to);
+                break;
             case MNV:
                 foreach(from, (k, v) -> copyDeletion(k, v, from, to, sidToAllele));
+                copyReference(from, to);
                 break;
             default:
                 break;
         }
-        copyReference(from, to, type);
     }
 
-    private void copyReference(AlleleCountPosition fromCount, AlleleCountPosition toCount, VariantType type) {
+    private void copyReference(AlleleCountPosition fromCount, AlleleCountPosition toCount) {
         Map<Integer, List<Integer>> from = fromCount.getReference();
         ArrayList<Integer> alleles = new ArrayList<>(from.keySet());
         Map<Integer, List<Integer>> to = toCount.getReference();
-        Map<Integer, Integer> alternateCount = mapSampleidToAlleleCnt(toCount.getAlternate());
-
-        Map<Integer, Integer> countAlts = new HashMap<>();
-        toCount.getAltMap().forEach((alt, map) -> map.forEach((allele, ids) -> ids.forEach(id -> {
-            countAlts.put(id, countAlts.getOrDefault(id, 0));
-        })));
 
         // get normal reference first
         Collections.sort(alleles);
@@ -64,30 +65,16 @@ public class AlleleCombiner {
             Set<Integer> idList = new HashSet<>(from.get(fromAllelCnt)); // Remove possible duplicates
             for (Integer sid : idList) {
                 Integer toAlleleCnt = toMap.getOrDefault(sid, 0);
-                Integer toAltCnt = countAlts.getOrDefault(sid, 0);
 
-                if (toAlleleCnt == 0 && fromAllelCnt == HBaseAlleleCalculator.NO_CALL) {
-                    toMap.put(sid, fromAllelCnt); // always transfer NOCALL
-                } else if (type.equals(VariantType.INSERTION) && alternateCount.containsKey(sid)) {
-                    if (toAlleleCnt == 0) {
-                        if (toAltCnt > 0 && fromAllelCnt > 0) { // alt exist with high allele count
-                            int value = Math.abs(toAltCnt - fromAllelCnt);
-                            toMap.put(sid, value); // ignore INSERTION reference calls
-                        } else if (fromAllelCnt > HBaseAlleleCalculator.NO_CALL) {
-                            // ignore INSERTION REF calls and don't overwrite other REF calls.
-                            toMap.put(sid, fromAllelCnt);
-                        }
-                    }
-                } else if (fromAllelCnt <= HBaseAlleleCalculator.NO_CALL && toAlleleCnt > 0) {
-                    toMap.put(sid, toAlleleCnt); // ignore INSERTION reference calls
-                } else {
+                if (toAlleleCnt == 0 && fromAllelCnt == NO_CALL) {
+                    toMap.put(sid, fromAllelCnt); // always transfer NOCALL if nothing else available.
+                } else if (fromAllelCnt > NO_CALL) {
                     toMap.put(sid, toAlleleCnt + fromAllelCnt);
                 }
             }
         }
         Map<Integer, Set<Integer>> refAlleleMap = mapAlleleCntToSampleid(toMap);
         refAlleleMap.remove(2); // remove hom_ref
-
         to.clear(); // reset
         refAlleleMap.forEach((k, v) -> to.put(k, new ArrayList<>(v)));
     }
@@ -120,7 +107,7 @@ public class AlleleCombiner {
     private void copyDeletion(String fromAlt, Map<Integer, List<Integer>> map,
                               AlleleCountPosition from, AlleleCountPosition to,
                               Map<Integer, Integer> overlaps) {
-        if (fromAlt.equals(HBaseAlleleCalculator.DEL_SYMBOL)) {
+        if (fromAlt.equals(DEL_SYMBOL)) {
             Map<Integer, Integer> deletions = mapSampleidToAlleleCnt(map);
             overlaps.keySet().forEach(k -> deletions.remove(k)); // remove all known overlaps
 
@@ -132,7 +119,7 @@ public class AlleleCombiner {
             deletions.forEach((sid, allele) -> to.getReference().computeIfAbsent(allele, k -> new ArrayList<>()).add(sid));
         } else if (BASES.contains(fromAlt)) { // A T G C
             transfer(map, to.getReference());
-        } else if (fromAlt.equals(HBaseAlleleCalculator.INS_SYMBOL)) {
+        } else if (fromAlt.equals(INS_SYMBOL)) {
             // ignore -> references before / after are represented as 0/0
             Map<Integer, Integer> alternate = mapSampleidToAlleleCnt(to.getAlternate());
             Map<Integer, Integer> insertions = mapSampleidToAlleleCnt(map);
@@ -158,37 +145,87 @@ public class AlleleCombiner {
     private void copyInsertion(String fromAlt, Map<Integer, List<Integer>> map,
                                AlleleCountPosition from, AlleleCountPosition to,
                                Map<Integer, Integer> overlaps) {
-        if (fromAlt.equals(HBaseAlleleCalculator.INS_SYMBOL)) {
+        if (fromAlt.equals(INS_SYMBOL)) {
             // remove current Insertion information
             removeCurrentVariantCalls(overlaps, to.getAlternate());
             // add
             transfer(fromAlt, mapAlleleCntToSampleid(overlaps), to);
             // move reference count of insertions to reference count.
             from.getReference().forEach((allele, ids) -> {
-                if (allele < HBaseAlleleCalculator.NO_CALL) {
+                if (allele < NO_CALL) {
                     to.getReference()
-                            .computeIfAbsent(((allele - HBaseAlleleCalculator.NO_CALL) * -1), k -> new ArrayList<>())
+                            .computeIfAbsent(((allele - NO_CALL) * -1), k -> new ArrayList<>())
                             .addAll(ids);
                 }
             });
-        } else  if (fromAlt.equals(HBaseAlleleCalculator.DEL_SYMBOL)) {
+        } else  if (fromAlt.equals(DEL_SYMBOL)) {
             transfer(fromAlt, map, to);
         } else if (BASES.contains(fromAlt)) { // A T G C
+            Map<Integer, Integer> currAlts = mapSampleidToAlleleCnt(to.getAlternate());
+            Map<Integer, Integer> currRefs = mapSampleidToAlleleCnt(to.getReference());
             // that are SNVs -> add them to reference.
-            transfer(map, to.getReference());
+            map.forEach((allele, ids) -> {
+                List<Integer> refIds = to.getReference().computeIfAbsent(allele, k -> new ArrayList<>());
+                ids.forEach((sid) -> {
+                    if (!currAlts.containsKey(sid)) {
+                        refIds.add(sid); // only add if not in current Alternate (-> indel overap!!!)
+                    } else if (!currRefs.containsKey(sid)) {
+                        // FIX for SNP called as SecAlt -> no reference recorded for INDEL!!!
+                        refIds.add(sid);
+                    }
+                });
+            });
         } else {
             throw new IllegalStateException("Unexpected option. Not implemented yet: " + fromAlt);
         }
+    }
+
+    private void copyInsertionReference(AlleleCountPosition from, AlleleCountPosition to) {
+        // All Insertion reference allele calls already copied over.
+        Map<Integer, Integer> toReferenceCount = mapSampleidToAlleleCnt(to.getReference());
+        // With sids of current Insertion
+        Map<Integer, Integer> toAlternateCount = mapSampleidToAlleleCnt(to.getAlternate());
+        Set<Integer> toOtherInsertionIds = new HashSet<>();
+        if (to.getAltMap().containsKey(INS_SYMBOL)) {
+            to.getAltMap().get(INS_SYMBOL).forEach((k, ids) -> toOtherInsertionIds.addAll(ids));
+        }
+
+        // fill other reference calls, which are not in this list.
+        from.getReference().forEach((allele, ids) -> {
+            if (allele < NO_CALL) {
+                ids.forEach((sid) -> {
+                    if (!toReferenceCount.containsKey(sid) || toReferenceCount.get(sid) < 0) {
+                        throw new IllegalStateException("Insertion reference call should have been transferred!!!");
+                    }
+                });
+                return; // Ignore  - already transferred.
+            }
+            if (allele.equals(NO_CALL)) {
+                // only fill if not set yet
+                ids.forEach((sid) -> toReferenceCount.putIfAbsent(sid, NO_CALL));
+                return;
+            }
+            ids.forEach((sid) -> {
+                if (!toReferenceCount.containsKey(sid)) {
+                    toReferenceCount.put(sid, allele);
+                } else if (!toAlternateCount.containsKey(sid) && !toOtherInsertionIds.contains(sid))  {
+                    toReferenceCount.put(sid, toReferenceCount.getOrDefault(sid, 0) + allele);
+                }
+            });
+        });
+        to.getReference().clear();
+        to.getReference().putAll(mapAlleleCntToSampleidList(toReferenceCount));
+        to.getReference().remove(2); // remove HomRef
     }
 
 
     private void copySnv(String fromAlt, String toAlt, Map<Integer, List<Integer>> map, AlleleCountPosition to) {
         if (fromAlt.equals(toAlt)) {
             return; // same variant -> ignore
-        } else if (fromAlt.equals(HBaseAlleleCalculator.INS_SYMBOL)) {
+        } else if (fromAlt.equals(INS_SYMBOL)) {
             // Not sure if it's best to add TODO Check
             transfer(fromAlt, map, to);
-        } else  if (fromAlt.equals(HBaseAlleleCalculator.DEL_SYMBOL)) {
+        } else  if (fromAlt.equals(DEL_SYMBOL)) {
             transfer(fromAlt, map, to);
         } else if (BASES.contains(fromAlt)) { // A T G C (other than current)
             transfer(fromAlt, map, to);
@@ -199,6 +236,20 @@ public class AlleleCombiner {
 
     private void foreach(AlleleCountPosition from, BiConsumer<String, Map<Integer, List<Integer>>> consumer) {
         from.getAltMap().forEach((variant, map) -> consumer.accept(variant, map));
+    }
+
+    private void foreach(AlleleCountPosition from, BiConsumer<String, Map<Integer, List<Integer>>> consumer, String ... preferences) {
+        Set<String> preferenceSet = new HashSet<>(Arrays.asList(preferences));
+        for (String preference : preferences) {
+            if (from.getAltMap().containsKey(preference)) {
+                consumer.accept(preference, from.getAltMap().get(preference));
+            }
+        }
+        from.getAltMap().forEach((varId, map) -> {
+            if (!preferenceSet.contains(varId)) {
+                consumer.accept(varId, map);
+            }
+        });
     }
 
     private void transfer(String fromAlt, Map<Integer, ? extends Collection<Integer>> map, AlleleCountPosition to) {
@@ -221,6 +272,11 @@ public class AlleleCombiner {
     protected Map<Integer, Set<Integer>> mapAlleleCntToSampleid(Map<Integer, Integer> toVariant) {
         Map<Integer, Set<Integer>> coveredMap = new HashMap<>();
         toVariant.forEach((k, v) -> coveredMap.computeIfAbsent(v, x -> new HashSet<>()).add(k));
+        return coveredMap;
+    }
+    protected Map<Integer, List<Integer>> mapAlleleCntToSampleidList(Map<Integer, Integer> toVariant) {
+        Map<Integer, List<Integer>> coveredMap = new HashMap<>();
+        toVariant.forEach((k, v) -> coveredMap.computeIfAbsent(v, x -> new ArrayList<>()).add(k));
         return coveredMap;
     }
 

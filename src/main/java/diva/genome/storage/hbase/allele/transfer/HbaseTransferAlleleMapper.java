@@ -219,7 +219,7 @@ public class HbaseTransferAlleleMapper extends AbstractVariantTableMapReduce {
         this.positionBuffer.stream().filter(isNotIndelFunction).forEach(combineFunction);
     }
 
-    private Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
+    protected Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
         this.alleleCombiner.combine(variant, from, to, this.deletionEnds);
         return this.converter.convertPut(variant.getChromosome(), variant.getStart(),
                 variant.getReference(), variant.getAlternate(), variant.getType(), to);

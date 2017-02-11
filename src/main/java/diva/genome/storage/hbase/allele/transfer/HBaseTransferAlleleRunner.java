@@ -85,6 +85,16 @@ public class HBaseTransferAlleleRunner extends AlleleTableToVariantRunner {
             // nothing
         }
 
+        @Override
+        protected Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
+            Put put = super.newTransfer(variant, from, to);
+            if (getLog().isDebugEnabled()) {
+                getLog().debug("Merged from: \n{}" , from.toDebugString());
+                getLog().debug("Merged {} into: \n{}" , variant, to.toDebugString());
+            }
+            return put;
+        }
+
         public void runAlternative(ResultScanner scanner, Consumer<Put> submitFunction) {
             try {
                 // buffer

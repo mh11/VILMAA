@@ -44,4 +44,8 @@ public class AlleleCountPosition {
         target.addAll(collect);
     }
 
+    public String toDebugString() {
+        return "Reference: " + this.reference + "\nalternate: " + this.alternate + "\naltmap: " + this.altMap;
+    }
+
 }
