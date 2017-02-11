@@ -2,6 +2,7 @@ package diva.genome.storage.hbase.allele.transfer;
 
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator;
+import org.apache.commons.lang3.ObjectUtils;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.biodata.models.variant.avro.VariantType;
 
@@ -163,12 +164,15 @@ public class AlleleCombiner {
         } else if (BASES.contains(fromAlt)) { // A T G C
             Map<Integer, Integer> currAlts = mapSampleidToAlleleCnt(to.getAlternate());
             Map<Integer, Integer> currRefs = mapSampleidToAlleleCnt(to.getReference());
+            Map<Integer, Integer> currOtherInsertions = mapSampleidToAlleleCnt(
+                    ObjectUtils.firstNonNull(from.getAltMap().get(INS_SYMBOL), Collections.emptyMap()));
+
             // that are SNVs -> add them to reference.
             map.forEach((allele, ids) -> {
                 List<Integer> refIds = to.getReference().computeIfAbsent(allele, k -> new ArrayList<>());
                 ids.forEach((sid) -> {
-                    if (!currAlts.containsKey(sid)) {
-                        refIds.add(sid); // only add if not in current Alternate (-> indel overap!!!)
+                    if (!currAlts.containsKey(sid) && !currOtherInsertions.containsKey(sid)) {
+                        refIds.add(sid); // only add if not in current (or other INSERTION)  (-> indel overlap!!!)
                     } else if (!currRefs.containsKey(sid)) {
                         // FIX for SNP called as SecAlt -> no reference recorded for INDEL!!!
                         refIds.add(sid);

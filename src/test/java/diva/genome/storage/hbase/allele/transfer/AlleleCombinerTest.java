@@ -175,6 +175,38 @@ public class AlleleCombinerTest {
     }
 
     @Test
+    public void combineInsertionAndInsertionSnvSeparate() {
+        setupTwoSamples();
+        calculator.addVariant(insertion);
+        calculator.addVariant(insertion2);
+        calculator.addVariant(snv2);
+        HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
+        overlaps.put(insertion.getEnd(), map(1, 1, 2, 1));
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId, 2)), insertion, overlaps,
+                mapObj(1, new HashSet<>(Arrays.asList(1,2))));
+
+        Variant variant = convertBack(this.insertion, validate);
+        System.out.println("insertion = " + insertion.getImpl());
+        equalsGT(sampleName, "0/1", variant);
+        equalsGT("S2", "0/2", variant);
+    }
+
+    @Test
+    public void combineSnvAndInsertionSeparateSameSample() {
+        calculator.addVariant(snv);
+        calculator.addVariant(insertion);
+        HashMap<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
+        overlaps.put(insertion.getEnd(), map(sampleId, 1));
+        AlleleCountPosition validate = validate(new HashSet<>(Arrays.asList(sampleId)), snv, overlaps,
+                mapObj(1, new HashSet<>(Arrays.asList(sampleId))));
+
+        Variant variant = convertBack(this.snv, validate);
+        System.out.println("snv = " + snv.getImpl());
+        equalsGT(sampleName, "0/1", variant);
+    }
+
+
+    @Test
     public void combineRefCall() throws Exception {
         setupTwoSamples();
         calculator.addVariant(homrefOnAuto);
