@@ -1,25 +1,20 @@
 package diva.genome.storage.hbase.allele.stats;
 
 import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
-import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.io.NullWritable;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
-import org.opencb.opencga.storage.core.variant.stats.VariantStatsWrapper;
 import org.opencb.opencga.storage.hadoop.variant.AbstractHBaseMapReduce;
 
-import javax.lang.model.type.NullType;
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
 
 /**
  * Created by mh719 on 12/02/2017.
  */
-public class VariantTypeSummaryMapper extends AbstractHBaseMapReduce<ImmutableBytesWritable, NullType> {
+public class VariantTypeSummaryMapper extends AbstractHBaseMapReduce<NullWritable, NullWritable> {
 
     private HBaseAlleleCountsToVariantConverter alleleCountsToVariantConverter;
     private byte[] studiesRow;
