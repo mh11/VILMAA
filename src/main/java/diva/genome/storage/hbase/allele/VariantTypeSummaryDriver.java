@@ -3,10 +3,10 @@ package diva.genome.storage.hbase.allele;
 import diva.genome.storage.hbase.allele.stats.VariantTypeSummaryMapper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.opencb.opencga.storage.hadoop.variant.AbstractAnalysisTableDriver;
 
 import java.io.IOException;
@@ -34,13 +34,11 @@ public class VariantTypeSummaryDriver extends AbstractAnalysisTableDriver {
 
     @Override
     protected void initMapReduceJob(String inTable, Job job, Scan scan, boolean addDependencyJar) throws IOException {
-        TableMapReduceUtil.initTableMapperJob(
-                inTable, scan,
-                this.getMapperClass(),
-                NullWritable.class,
-                NullWritable.class,
-                job,
-                addDependencyJar);
+        super.initMapReduceJob(inTable, job, scan, addDependencyJar);
+
+        job.setOutputFormatClass(NullOutputFormat.class);
+        job.setOutputKeyClass(NullWritable.class);
+        job.setOutputValueClass(NullWritable.class);
         job.setNumReduceTasks(0);
     }
 
