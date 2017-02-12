@@ -4,9 +4,11 @@ import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverte
 import org.apache.hadoop.hbase.client.Result;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
+import org.opencb.opencga.storage.core.variant.stats.VariantStatsWrapper;
 import org.opencb.opencga.storage.hadoop.variant.stats.AnalysisStatsMapper;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Created by mh719 on 01/02/2017.
@@ -32,4 +34,8 @@ public class AlleleStatsMapper extends AnalysisStatsMapper {
         return alleleCountsToVariantConverter.convert(value);
     }
 
+    @Override
+    protected List<VariantStatsWrapper> calculateStats(Variant variant) {
+        return super.calculateStats(variant);
+    }
 }

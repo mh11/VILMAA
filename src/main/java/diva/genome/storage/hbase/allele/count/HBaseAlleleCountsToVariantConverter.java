@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.count;
 
+import antlr.collections.impl.IntRange;
 import com.google.common.collect.BiMap;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.commons.lang3.StringUtils;
@@ -22,6 +23,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
 
@@ -289,7 +291,7 @@ public class HBaseAlleleCountsToVariantConverter {
         }
     }
 
-    private Map<Integer, String> buildGts(Set<Integer> sampleIds, AlleleCountPosition bean, Map<String, Integer> altIndexs,
+    public Map<Integer, String> buildGts(Set<Integer> sampleIds, AlleleCountPosition bean, Map<String, Integer> altIndexs,
                                           Variant variant) {
         if (sampleIds.isEmpty()) {
             return Collections.emptyMap();
@@ -308,15 +310,17 @@ public class HBaseAlleleCountsToVariantConverter {
             return gt;
         };
 
-        bean.getReference().forEach((k, v) -> v.forEach(s -> {
-            if (k.equals(NO_CALL)) {
+        bean.getReference().forEach((alleles, v) -> {
+            if (alleles.equals(NO_CALL)) {
                 v.forEach(sid -> gts.put(sid, Allele.NO_CALL_STRING));
                 return;
             }
-            if (!k.equals(2)) { //only contains COUNTS
-                gts.put(s, createRefGenotype.apply(k, gts.get(s)));
+            if (!alleles.equals(2)) { //only contains COUNTS
+                String gt = createRefGenotype.apply(alleles, StringUtils.EMPTY);
+                v.forEach(sid -> gts.put(sid, gt));
+                return;
             }
-        }));
+        });
 
         BiConsumer<String, Map<Integer, List<Integer>>> mapGenotype = (k, a) -> {
             if (a.isEmpty()) {
@@ -336,29 +340,36 @@ public class HBaseAlleleCountsToVariantConverter {
                 throw new IllegalStateException("Problems with " + k + " for " + variant);
             }
             a.forEach((alleles, ids) -> {
+                String gtTemplate = altIdx + "";
+                for (int i = 1; i < alleles; i++) {
+                    gtTemplate += "/" + altIdx;
+                }
+                String gtT = gtTemplate;
                 ids.forEach(sampleId -> {
                     // for each sample ID
                     String gt = gts.get(sampleId);
-                    for (int i = 0; i < alleles; i++) {
-                        if (StringUtils.isBlank(gt) || StringUtils.equals(gt, Allele.NO_CALL_STRING)) {
-                            gt = altIdx.toString();
-                        } else {
-                            gt += "/" + altIdx;
-                        }
+                    if (StringUtils.isBlank(gt) || StringUtils.equals(gt, Allele.NO_CALL_STRING)) {
+                        gt = gtT;
+                    } else {
+                        gt += "/" + gtT;
                     }
-                    String[] split = gt.split("/");
-                    Arrays.sort(split);
-                    gt = StringUtils.join(split, '/');
                     gts.put(sampleId, gt);
                 });
             });
         };
         bean.getAltMap().forEach(mapGenotype);
         mapGenotype.accept(variant.getAlternate(), bean.getAlternate());
-        // Order GT
+        String homRef = createRefGenotype.apply(2, null);
         sampleIds.forEach(sid -> {
-            if (StringUtils.isBlank(gts.get(sid))) {
-                gts.put(sid, createRefGenotype.apply(2, null));
+            String gt = gts.get(sid);
+            if (StringUtils.isBlank(gt)) {
+                gts.put(sid, homRef);
+            } else {
+                // Order GT
+                String[] split = gt.split("/");
+                Arrays.sort(split);
+                gt = StringUtils.join(split, '/');
+                gts.put(sid, gt);
             }
         });
         return gts;

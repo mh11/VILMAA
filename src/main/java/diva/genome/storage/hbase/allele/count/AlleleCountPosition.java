@@ -13,6 +13,41 @@ public class AlleleCountPosition {
     private final Map<Integer, List<Integer>> alternate = new HashMap<>();
     private final Map<String, Map<Integer, List<Integer>>> altMap = new HashMap<>();
 
+    public AlleleCountPosition() {
+        // do nothing
+    }
+
+    public AlleleCountPosition(AlleleCountPosition copy, Set<Integer> valid) {
+        this();
+        if (null != valid && valid.isEmpty()) {
+            throw new IllegalStateException("Please provide IDs to filter on");
+        }
+        this.pass.addAll(copyAndFilter(copy.pass, valid));
+        this.notPass.addAll(copyAndFilter(copy.notPass, valid));
+        copy.reference.forEach((k, v) -> this.reference.put(k, copyAndFilter(v, valid)));
+        copy.alternate.forEach((k, v) -> this.alternate.put(k, copyAndFilter(v, valid)));
+
+        copy.altMap.forEach((vid, map) -> {
+            Map<Integer, List<Integer>> currMap = this.altMap.computeIfAbsent(vid, k -> new HashMap<>());
+            map.forEach((k, v) -> currMap.put(k, copyAndFilter(v, valid)));
+        });
+    }
+
+    public AlleleCountPosition(AlleleCountPosition copy) {
+        this(copy, null);
+    }
+
+    private List<Integer> copyAndFilter(List<Integer> from, Set<Integer> valid) {
+        if (from.isEmpty()) {
+            return new ArrayList<>();
+        }
+        if (null == valid) {
+            return new ArrayList<>(from);
+        }
+        return from.stream().filter(i -> valid.contains(i)).collect(Collectors.toList());
+    }
+
+
     public List<Integer> getNotPass() {
         return notPass;
     }
