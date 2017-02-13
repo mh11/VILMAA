@@ -372,6 +372,11 @@ public class HBaseAlleleCountsToVariantConverter {
                 gts.put(sid, gt);
             }
         });
+        for (Integer sid : new ArrayList<>(gts.keySet())) {
+            if (!sampleIds.contains(sid)) {
+                gts.remove(sid);
+            }
+        }
         return gts;
     }
 

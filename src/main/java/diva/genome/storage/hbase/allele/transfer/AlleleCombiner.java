@@ -228,7 +228,17 @@ public class AlleleCombiner {
                 if (!toReferenceCount.containsKey(sid)) {
                     toReferenceCount.put(sid, allele);
                 } else if (!toAlternateCount.containsKey(sid) && !toOtherInsertionIds.contains(sid))  {
-                    toReferenceCount.put(sid, toReferenceCount.getOrDefault(sid, 0) + allele);
+                    Integer value = toReferenceCount.getOrDefault(sid, 0);
+                    if (value.equals(NO_CALL)) {
+                        value = allele;
+                    } else if (value < 0 && allele > 0) {
+                        value = allele; // overwrite (not sure if it makes sense)
+                    } else if (value > 0 && allele < 0) {
+                        value = value; // overwrite (not sure if it makes sense)
+                    } else {
+                        value += allele;
+                    }
+                    toReferenceCount.put(sid, value);
                 }
             });
         });
