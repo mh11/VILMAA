@@ -501,7 +501,7 @@ public class AlleleCombinerTest {
         return varCount;
     }
 
-    protected Map<Integer, List<Integer>> convertSetToList(Map<Integer, Set<Integer>> integerSetMap) {
+    public static Map<Integer, List<Integer>> convertSetToList(Map<Integer, Set<Integer>> integerSetMap) {
         Map<Integer, List<Integer>> map = new HashMap<>();
         if (null == integerSetMap || integerSetMap.isEmpty()) {
             return map;
@@ -514,7 +514,7 @@ public class AlleleCombinerTest {
         return map;
     }
 
-    protected Map<Integer, Set<Integer>> convertListToSet(Map<Integer, List<Integer>> integerSetMap) {
+    public static Map<Integer, Set<Integer>> convertListToSet(Map<Integer, List<Integer>> integerSetMap) {
         Map<Integer, Set<Integer>> map = new HashMap<>();
         integerSetMap.forEach((k, v) -> map.put(k, new HashSet<>(v)));
         return map;

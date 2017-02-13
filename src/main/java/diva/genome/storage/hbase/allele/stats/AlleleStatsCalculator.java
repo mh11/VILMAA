@@ -2,19 +2,14 @@ package diva.genome.storage.hbase.allele.stats;
 
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
-import htsjdk.variant.variantcontext.Allele;
-import org.apache.commons.lang3.StringUtils;
 import org.opencb.biodata.models.feature.Genotype;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.biodata.models.variant.avro.VariantType;
 import org.opencb.biodata.models.variant.stats.VariantStats;
-import org.opencb.opencga.storage.hadoop.variant.converters.HBaseToVariantConverter;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
@@ -25,12 +20,10 @@ import static htsjdk.variant.variantcontext.Allele.NO_CALL_STRING;
  */
 public class AlleleStatsCalculator {
     private final Set<Integer> indexed;
-    private int indexedSize;
     private HBaseAlleleCountsToVariantConverter variantConverter;
 
     public AlleleStatsCalculator(Collection<Integer> indxedSamples) {
         this.indexed = new HashSet<>(indxedSamples);
-        this.indexedSize = this.indexed.size();
         this.variantConverter = new HBaseAlleleCountsToVariantConverter(null, null);
     }
 
@@ -48,76 +41,11 @@ public class AlleleStatsCalculator {
         refAlleles.remove(1);
         if (!refAlleles.isEmpty()) {
             refAlleles.forEach(r -> position.getReference().remove(r));
-//            throw new IllegalStateException("Unexpected Reference allele found: " + refAlleles);
         }
     }
 
-
-    /*
-i = 1000
-(end - start) = 1810
-i = 2000
-(end - start) = 2240
-i = 3000
-(end - start) = 3385
-i = 4000
-(end - start) = 5114
-i = 5000
-(end - start) = 5960
-i = 6000
-(end - start) = 7824
-i = 7000
-(end - start) = 9191
-i = 8000
-(end - start) = 9497
-
-
-i = 1000
-(end - start) = 1866
-i = 2000
-(end - start) = 2823
-i = 3000
-(end - start) = 4012
-i = 4000
-(end - start) = 5630
-i = 5000
-(end - start) = 7220
-i = 6000
-(end - start) = 12409
-i = 7000
-(end - start) = 10580
-i = 8000
-(end - start) = 12009
-
-
-
-    * */
-
-
-    /*
-    * variantType
-    * genotypesCount "0/0":10 "0/1":120 ...
-    * genotypesFreq  "0/0":0.1234 ...
-    * mgfGenotype
-    *
-    * missingAlleles
-    * missingGenotypes
-    *
-    * x refAlleleCount
-    * x refAlleleFreq
-    * x altAlleleCount
-    * x altAlleleFreq
-    * x maf
-    * x mafAllele
-    *
-    * */
-
     public VariantStats calculateStats(AlleleCountPosition position, Set<Integer> samples, Variant variant) {
         allExist(samples);
-//        Map<Integer, Integer> mapping = new HashMap<>();
-//        List<List<Integer>> arr = new ArrayList<>();
-//        AlleleCountPosition currAllele = position;
-
         AlleleCountPosition currAllele = new AlleleCountPosition(position, samples);
         Set<Integer> remaining = new HashSet<>(samples);
         validRefAlleles(currAllele);
@@ -148,12 +76,11 @@ i = 8000
         int tCnt = count(currAllele.getAltMap().get("T"), validSampleId);
         int gCnt = count(currAllele.getAltMap().get("G"), validSampleId);
         int cCnt = count(currAllele.getAltMap().get("C"), validSampleId);
-        int noCall = count(currAllele.getReference().get(NO_CALL), validNoCallSampleId);
+        count(currAllele.getReference().get(NO_CALL), validNoCallSampleId); // needed to remove IDS!!!
 
         int refCount = count(refMap, validSampleId);
         int homRef = remaining.size() * 2;
 
-//        int total = homRef + refCount + alternateCount + noCall + insCnt + delCnt + aCnt + tCnt + gCnt + cCnt;
         int total = homRef + refCount + alternateCount + insCnt + delCnt + aCnt + tCnt + gCnt + cCnt; // no-call is not an Allele
 
         // TODO add HomRefs
@@ -191,6 +118,7 @@ i = 8000
         Set<Integer> unexplained = new HashSet<>();
         altPos.put(variant.getReference(), 0);
         altPos.put(variant.getAlternate(), 1);
+        Set<Integer> oneRef = new HashSet<>(currCount.getReference().containsKey(1) ? currCount.getReference().get(1) : Collections.emptyList());
         currCount.getAltMap().forEach((alt, map) -> {
             if (alt.equals(INS_SYMBOL)) {
                 alt = DEL_SYMBOL;
@@ -206,19 +134,16 @@ i = 8000
         //HomRef GT
         if (homRef > 0) {
             cntGTs.put(Genotype.HOM_REF, homRef / 2);
-//            stats.getGenotypesCount().put(new Genotype(Genotype.HOM_REF, variant.getReference(), alternates), homRef);
         }
         // HomVar GT
         if (currCount.getAlternate().containsKey(2)) {
             cntGTs.put(Genotype.HOM_VAR, currCount.getAlternate().get(2).size());
-//            stats.getGenotypesCount().put(new Genotype(Genotype.HOM_VAR, variant.getReference(), alternates), currCount.getAlternate().get(2).size());
         }
 
         if (currCount.getAlternate().containsKey(1)) {
             AtomicInteger cnt = new AtomicInteger(0);
-            Set<Integer> oneRef = new HashSet<>(currCount.getReference().containsKey(1) ? currCount.getReference().get(1) : Collections.emptyList());
             currCount.getAlternate().get(1).forEach(sid -> {
-                if (oneRef.contains(sid)) {
+                if (oneRef.remove(sid)) {
                     cnt.incrementAndGet();
                 } else {
                     unexplained.add(sid);
@@ -226,13 +151,12 @@ i = 8000
             });
             if (cnt.get() > 0) {
                 cntGTs.put("0/1", cnt.get());
-//                stats.getGenotypesCount().put(new Genotype("0/1", variant.getReference(), alternates), cnt.get());
             }
         }
+        unexplained.addAll(oneRef); // add individuals with one reference allele
         // NOCALL
         if (!noCalls.isEmpty()) {
             cntGTs.put(Genotype.NOCALL, noCalls.size());
-//            stats.getGenotypesCount().put(new Genotype(Genotype.NOCALL, variant.getReference(), alternates), noCalls.size());
         }
         stats.setMissingAlleles(noCalls.size());
         stats.setMissingGenotypes(noCalls.size());
@@ -240,7 +164,6 @@ i = 8000
             // Resolve all SecAlt + more complex (which are NOT nocall, homvar, homref, het)
             Map<Integer, String> gts = this.variantConverter.buildGts(unexplained, currCount, altPos, variant);
             unexplained.forEach(sid -> cntGTs.compute(gts.get(sid), (k, v) -> v == null ? 1 : v + 1));
-//            gts.forEach((id, str) -> cntGTs.compute(str, (k, v) -> v == null ? 1 : v + 1));
         }
         int total = cntGTs.entrySet().stream()
                 .filter(e -> !e.getKey().equals(NO_CALL_STRING))
@@ -267,34 +190,6 @@ i = 8000
             stats.setMgf((float) mgtCnt.get() / total);
             stats.setMgfGenotype(mgt.toString());
         }
-
-//        Map<String, Integer> altsCount = new HashMap<>();
-//        BiConsumer<String, Integer> processAltFunction = (symbol, idx) -> {
-//            if (!currCount.getAltMap().containsKey(symbol)) {
-//                return;
-//            }
-//            currCount.getAltMap().get(symbol).forEach((allele, ids) -> {
-//                if (allele < 0) {
-//                    return;
-//                }
-//                String template = allele == 1 ? idx.toString() : StringUtils.repeat(idx.toString(), "/", allele);
-//                ids.forEach((sid) -> {
-//                    String gt = unexplainedAlt.remove(sid) != null ? "0/" + template : template;
-//                    altsCount.compute(gt, (key, val) -> null == val ? 1 : val + 1);
-//                });
-//            });
-//        };
-//
-//        if (alts.size() > 0) { // there are SecAlts
-//            for (int i = 0; i < alts.size(); i++) {
-//                int idx = i + 2; // SecAlt adjustment.
-//                String alt = alts.get(i);
-//                processAltFunction.accept(alt, idx);
-//                if (alt.equals(DEL_SYMBOL)) {
-//                    // also check INSERTION
-//                }
-//            }
-//        }
     }
 
     private int count(Map<Integer, List<Integer>> count, Function<Integer, Boolean> validSampleId) {
@@ -310,15 +205,6 @@ i = 8000
             cnt += e.getKey() * count(e.getValue(), validSampleId);
         }
         return cnt;
-    }
-
-    private Map<Integer, Integer> countNoCall(Map<Integer, List<Integer>> count, Set<Integer> remaining) {
-        return null;
-    }
-
-    private Map<Integer, Integer> count(Map<Integer, List<Integer>> count, Function<Integer, Boolean> validSampleId,
-                                        Function<Integer, Boolean> validAllele) {
-        return null;
     }
 
     private int count(List<Integer> count, Function<Integer, Boolean> validSampleId) {
