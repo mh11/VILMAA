@@ -3,8 +3,10 @@ package diva.genome.storage.hbase.allele.fix;
 import diva.genome.storage.hbase.allele.AlleleCalculatorDriver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.util.ToolRunner;
+import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +27,17 @@ public class FromPhoenixToProto extends AlleleCalculatorDriver {
     @Override
     protected String getJobOperationName() {
         return JOB_OPERATION_NAME;
+    }
+
+    @Override
+    protected Scan createScan(VariantTableHelper gh, String[] fileArr) {
+        Scan scan = new Scan();
+        int caching = getConf().getInt(HBASE_SCAN_CACHING, 100);
+        getLog().info("Scan set Caching to " + caching);
+        scan.setCaching(caching);        // 1 is the default in Scan, 200 caused timeout issues.
+        scan.setCacheBlocks(false);
+        scan.addFamily(this.getHelper().getColumnFamily());
+        return scan;
     }
 
     public static void main(String[] args) throws Exception {

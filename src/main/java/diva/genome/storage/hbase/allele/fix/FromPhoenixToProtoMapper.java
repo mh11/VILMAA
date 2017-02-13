@@ -39,14 +39,16 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
+        this.studiesRow = this.getHelper().generateVariantRowKey("_METADATA", 0);
         converter = new HBaseToAlleleCountConverter();
         groupedConverter = new AlleleCountToHBaseAppendGroupedConverter(getHelper().getColumnFamily());
     }
 
     @Override
     public void run(Context context) throws IOException, InterruptedException {
+        getLog().info("Start setup ...");
         this.setup(context);
-
+        getLog().info("Finished setup ...");
         String chromosome = "-1";
         int referencePosition = -1;
         Consumer<List<Append>> submitFunction = appends -> {
@@ -68,7 +70,9 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
 
         try {
             while (context.nextKeyValue()) {
+                ImmutableBytesWritable currentKey = context.getCurrentKey();
                 Result result = context.getCurrentValue();
+                context.getCounter("OPENCGA", "Found ...").increment(1);
                 if (isMetaRow(result.getRow())) {
                     context.getCounter("OPENCGA", "META_ROW").increment(1);
                     continue;
