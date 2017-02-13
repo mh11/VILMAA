@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.HBASE_SCAN_CACHING;
+
 /**
  * Created by mh719 on 30/01/2017.
  */
@@ -52,6 +54,17 @@ public class AlleleTransferDriver extends AbstractAnalysisTableDriver {
             throw new IllegalStateException(e);
         }
 
+    }
+
+    @Override
+    protected Scan createScan() {
+        Scan scan = super.createScan();
+        int caching = getConf().getInt(HBASE_SCAN_CACHING, -1);
+        if (caching > 1) {
+            getLog().info("Scan set Caching to " + caching);
+            scan.setCaching(caching);        // 1 is the default in Scan, 200 caused timeout issues.
+        }
+        return scan;
     }
 
     @Override
