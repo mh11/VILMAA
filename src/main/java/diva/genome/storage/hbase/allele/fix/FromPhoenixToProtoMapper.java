@@ -6,6 +6,7 @@ import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseAppend
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hbase.client.Append;
+import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -15,6 +16,7 @@ import org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableMapRe
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Created by mh719 on 09/02/2017.
@@ -48,25 +50,24 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
         String chromosome = "-1";
         int referencePosition = -1;
         Consumer<List<Append>> submitFunction = appends -> {
-            try {
-                context.getCounter("OPENCGA", "transfer-append").increment(1);
-                getHelper().getHBaseManager().act(getHelper().getOutputTableAsString(), (tab -> {
-                    try {
-                        Object[] results = new Object[appends.size()];
-                        tab.batch(appends, results);
-                    } catch (InterruptedException e) {
-                        throw new IllegalStateException(e);
-                    }
-                }));
-            } catch (Exception e) {
-                getLog().error("Problems with submitting", e);
-                throw new IllegalStateException(e);
-            }
+            getLog().info("Map {} appends to puts ... ", appends.size());
+            List<Put> puts = appends.stream().map(a -> {
+                Put put = new Put(a.getRow());
+                put.setFamilyCellMap(a.getFamilyCellMap());
+                return put;
+            }).collect(Collectors.toList());
+            context.getCounter("OPENCGA", "transfer-append").increment(1);
+            puts.forEach(put -> {
+                try {
+                    context.write(new ImmutableBytesWritable(put.getRow()), put);
+                } catch (IOException | InterruptedException e) {
+                    throw new IllegalStateException("Issue with submitting put ...", e);
+                }
+            });
         };
 
         try {
             while (context.nextKeyValue()) {
-                ImmutableBytesWritable currentKey = context.getCurrentKey();
                 Result result = context.getCurrentValue();
                 if (isMetaRow(result.getRow())) {
                     context.getCounter("OPENCGA", "META_ROW").increment(1);
@@ -75,10 +76,13 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
                 Variant variant = getHelper().extractVariantFromVariantRowKey(result.getRow());
                 int nextPos = groupedConverter.calcPosition(variant.getStart());
                 if (referencePosition != nextPos) {
+                    context.getCounter("OPENCGA", "FLUSH").increment(1);
+                    getLog().info("Flush buffer for " + referencePosition + " before adding " + variant);
                     flushBuffer(chromosome, submitFunction);
                 }
                 chromosome = variant.getChromosome();
-                referencePosition = variant.getStart();
+                referencePosition = groupedConverter.calcPosition(variant.getStart());
+                context.getCounter("OPENCGA", "add-to-buffer").increment(1);
                 addToBuffer(new ImmutablePair<>(variant, result));
             }
             // end
