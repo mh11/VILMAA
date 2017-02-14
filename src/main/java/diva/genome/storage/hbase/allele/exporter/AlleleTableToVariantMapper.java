@@ -9,10 +9,17 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.phoenix.schema.types.PFloat;
+import org.opencb.biodata.models.variant.StudyEntry;
 import org.opencb.biodata.models.variant.Variant;
+import org.opencb.biodata.models.variant.avro.FileEntry;
+import org.opencb.biodata.models.variant.stats.VariantStats;
 import org.opencb.opencga.storage.hadoop.variant.exporters.AnalysisToFileMapper;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by mh719 on 05/02/2017.
@@ -25,6 +32,7 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
     private double oprCutoff;
     private String cohortMafField;
     private float cohortMafCutoff;
+    private Set<String> validCohorts;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -40,6 +48,11 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
         this.cohortMafField = context.getConfiguration().get("DIVA_EXPORT_MAF_FIELD", "2_38857_MAF");
         this.cohortMafCutoff = context.getConfiguration().getFloat("DIVA_EXPORT_MAF_CUTOFF_GT", 0.0F);
         getLog().info("Use MAF cohort {} with cutoff {} to filter ... ", this.cohortMafField, cohortMafCutoff);
+
+        validCohorts = new HashSet<>();
+        validCohorts.add("BRIDGE");
+        validCohorts.add("BRIDGE_UNRELATED"); // quick hack
+        getLog().info("Only export stats for {} ...", this.validCohorts);
     }
 
     protected boolean isMetaRow(Result value) {
@@ -77,6 +90,18 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
 
     @Override
     protected Variant convertToVariant(Result value) {
-        return this.countsToVariantConverter.convert(value);
+        Variant variant = this.countsToVariantConverter.convert(value);
+        StudyEntry se = variant.getStudy(getHelper().getStudyId() + "");
+        Map<String, VariantStats> cleanStats = new HashMap<>();
+        Map<String, VariantStats> stats = se.getStats();
+        stats.forEach((k, v) -> {
+            if (validCohorts.contains(k)) {
+                cleanStats.put(k, v);
+            }
+        });
+        se.setStats(cleanStats);
+        FileEntry file = se.getFiles().get(0);
+        file.setAttributes(new HashMap<>()); // overwrite attributes
+        return variant;
     }
 }
