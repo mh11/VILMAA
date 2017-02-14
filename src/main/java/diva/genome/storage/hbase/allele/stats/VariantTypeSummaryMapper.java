@@ -40,6 +40,14 @@ public class VariantTypeSummaryMapper extends AbstractHBaseMapReduce<NullWritabl
         this.alleleCountConverter = new HBaseToAlleleCountConverter();
     }
 
+    public void setAlleleCountConverter(HBaseToAlleleCountConverter alleleCountConverter) {
+        this.alleleCountConverter = alleleCountConverter;
+    }
+
+    public void setIndexedSampleSize(int indexedSampleSize) {
+        this.indexedSampleSize = indexedSampleSize;
+    }
+
     @Override
     public void run(Context context) throws IOException, InterruptedException {
         this.typeCutoffCount.computeIfAbsent(VariantType.INSERTION, k -> new HashMap<>());
@@ -91,7 +99,7 @@ public class VariantTypeSummaryMapper extends AbstractHBaseMapReduce<NullWritabl
         }
     }
 
-    private double calculateOpr(Result value) {
+    public double calculateOpr(Result value) {
         AlleleCountPosition count = this.alleleCountConverter.convert(value);
         Integer noCall = 0;
         if (count.getReference().containsKey(NO_CALL)) {
