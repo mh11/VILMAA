@@ -29,6 +29,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
     private final AtomicBoolean asyncPut = new AtomicBoolean(false);
     private final AtomicBoolean asyncFinished = new AtomicBoolean(false);
     private volatile Future<String> submitFuture;
+    private volatile AlleleCountToHBaseAppendGroupedConverter converter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -43,10 +44,15 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
                     f -> context.getCounter(COUNTER_GROUP_NAME, "async-received").increment(f.size()),
                     f -> context.getCounter(COUNTER_GROUP_NAME, "async-submitted").increment(f.size()));
         }
+        converter = new AlleleCountToHBaseAppendGroupedConverter(getHelper().getColumnFamily());
     }
 
     public void setAsyncPut(boolean asyncPut) {
         this.asyncPut.set(asyncPut);
+    }
+
+    public void setConverter(AlleleCountToHBaseAppendGroupedConverter converter) {
+        this.converter = converter;
     }
 
     @Override
@@ -228,15 +234,8 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
 
             ctx.getContext().getCounter(COUNTER_GROUP_NAME, "VARIANTS_FROM_ARCHIVE").increment(countVariants.get());
 
-            AlleleCountToHBaseAppendGroupedConverter converter =
-                    new AlleleCountToHBaseAppendGroupedConverter(getHelper().getColumnFamily());
+            Collection<Append> appends = packageAlleleCounts(ctx.getChromosome(), studyId, alleleCalculator);
 
-            Collection<Append> appends =
-                    converter.convert(ctx.getChromosome(),
-                /* Convert Reference rows */
-                            alleleCalculator.buildReferenceMap(),
-                /* Convert Variant rows */
-                            alleleCalculator.buildVariantMap());
             /* Submit */
             ctx.getContext().getCounter(COUNTER_GROUP_NAME, "append-created").increment(appends.size());
             getLog().info("Submit {} appends ... ", appends.size());
@@ -251,4 +250,32 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
             throw e;
         }
     }
+
+
+    private Collection<Append> packageAlleleCounts(String chromosome, String studyId, HBaseAlleleCalculator alleleCalculator) {
+            AlleleCountToHBaseConverter converter =
+                    new AlleleCountToHBaseConverter(getHelper().getColumnFamily(), studyId);
+            List<Append> appends = new ArrayList<>();
+            /* Convert Reference rows */
+            alleleCalculator.forEachPosition((position, count) -> {
+                        Append convert = converter.convert(chromosome, position, count);
+                        if (null != convert) {
+                            appends.add(convert);
+                        }
+                    }
+            );
+            /* Convert Variant rows */
+            alleleCalculator.forEachVariantPosition(position -> alleleCalculator.forEachVariant(position, (var, count) -> {
+                appends.add(converter.convert(chromosome, position, var, count));
+            }));
+        return appends;
+    }
+
+//    private Collection<Append> packageAlleleCounts(String chromosome, String studyId, HBaseAlleleCalculator alleleCalculator) {
+//        return converter.convert(chromosome,
+//    /* Convert Reference rows */
+//                alleleCalculator.buildReferenceMap(),
+//    /* Convert Variant rows */
+//                alleleCalculator.buildVariantMap());
+//    }
 }

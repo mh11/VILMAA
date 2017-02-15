@@ -22,17 +22,30 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static diva.genome.storage.hbase.allele.count.AbstractAlleleDriver.CONFIG_COUNT_TABLE;
 
 /**
  * Created by mh719 on 30/01/2017.
  */
 public class AlleleCalculatorDriver extends AbstractVariantTableDriver {
     protected static final Logger LOG = LoggerFactory.getLogger(AlleleCalculatorDriver.class);
+    private String countTable;
+    public String getCountTable() {
+        return countTable;
+    }
 
     public static final String JOB_OPERATION_NAME = "Count Alleles";
 
 
     public AlleleCalculatorDriver() { /* nothing */ }
+
+    private Logger getLog() {
+        return LOG;
+    }
 
     @Override
     public int run(String[] args) throws Exception {
@@ -56,6 +69,10 @@ public class AlleleCalculatorDriver extends AbstractVariantTableDriver {
         if (StringUtils.isNotBlank(optString)) {
             getLog().info("Set mapreduce java opts: {}", optString);
             getConf().set("mapreduce.map.java.opts", optString);
+        }
+        countTable = getConf().get(CONFIG_COUNT_TABLE, StringUtils.EMPTY);
+        if (StringUtils.isBlank(countTable)) {
+            throw new IllegalStateException("Count table parameter required: " + CONFIG_COUNT_TABLE);
         }
         return super.run(args);
     }
@@ -93,9 +110,10 @@ public class AlleleCalculatorDriver extends AbstractVariantTableDriver {
 
     @Override
     protected void initMapReduceJob(String inTable, String outTable, Job job, Scan scan, boolean addDependencyJar) throws IOException {
-        getLog().info("Read from {} and write to {} ...", inTable, outTable);
+        String countTable = getCountTable();
+        getLog().info("Read from {} and write to {} ...", inTable, countTable);
         try (Connection con = ConnectionFactory.createConnection(getHelper().getConf())) {
-            createHBaseTable(getHelper(), outTable, con); // NO PHOENIX needed!!!!
+            createHBaseTable(getHelper(), countTable, con); // NO PHOENIX needed!!!!
         }
         TableMapReduceUtil.initTableMapperJob(
                 inTable,      // input table
@@ -106,7 +124,7 @@ public class AlleleCalculatorDriver extends AbstractVariantTableDriver {
                 job,
                 addDependencyJar);
         TableMapReduceUtil.initTableReducerJob(
-                outTable,      // output table
+                countTable,      // output table
                 null,             // reducer class
                 job,
                 null, null, null, null,
@@ -132,6 +150,18 @@ public class AlleleCalculatorDriver extends AbstractVariantTableDriver {
         driver.setConf(conf);
         int exitCode = ToolRunner.run(driver, args);
         return exitCode;
+    }
+
+
+    public static String buildCommandLineArgs(String server, String archive, String countTable, String analysisTable, int studyId,
+                                              List<Integer> fileIds, Map<String, Object> other) {
+        StringBuilder stringBuilder = new StringBuilder().append(server).append(' ').append(archive).append(' ')
+                .append(analysisTable).append(' ').append(studyId).append(' ');
+
+        stringBuilder.append(fileIds.stream().map(Object::toString).collect(Collectors.joining(",")));
+        stringBuilder.append(" ").append(CONFIG_COUNT_TABLE).append(" ").append(countTable);
+        ArchiveDriver.addOtherParams(other, stringBuilder);
+        return stringBuilder.toString();
     }
 
 }
