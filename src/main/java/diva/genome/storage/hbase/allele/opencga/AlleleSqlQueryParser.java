@@ -83,7 +83,8 @@ public class AlleleSqlQueryParser extends VariantSqlQueryParser {
         if (options.getBoolean(COUNT)) {
             return sb.append(" COUNT(*) ");
         } else {
-
+            logger.debug("Add query to options: {} ", query);
+            options.putAll(query);
             Set<VariantField> returnedFields = VariantField.getReturnedFields(options);
             logger.debug("Returned Fields found: ", returnedFields);
 
