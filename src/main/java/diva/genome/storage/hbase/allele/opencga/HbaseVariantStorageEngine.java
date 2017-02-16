@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.opencga;
 
 import org.apache.commons.lang3.NotImplementedException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.io.compress.Compression;
 import org.opencb.commons.datastore.core.ObjectMap;
@@ -8,6 +9,7 @@ import org.opencb.opencga.storage.core.StoragePipelineResult;
 import org.opencb.opencga.storage.core.config.StorageEngineConfiguration;
 import org.opencb.opencga.storage.core.exceptions.StorageEngineException;
 import org.opencb.opencga.storage.core.exceptions.StoragePipelineException;
+import org.opencb.opencga.storage.core.variant.VariantStorageEngine;
 import org.opencb.opencga.storage.core.variant.adaptors.VariantDBAdaptor;
 import org.opencb.opencga.storage.core.variant.annotation.VariantAnnotationManager;
 import org.opencb.opencga.storage.core.variant.annotation.annotators.VariantAnnotator;
@@ -28,6 +30,9 @@ import java.util.Map;
  */
 public class HbaseVariantStorageEngine extends HadoopVariantStorageEngine {
 
+
+    public static final String DIVA_GENOME_ALLELE_VARIANT_TABLE_NAME = "diva.genome.allele.variant.table.name";
+
     @Override
     public void dropFile(String study, int fileId) throws StorageEngineException {
         throw new NotImplementedException("");
@@ -37,6 +42,13 @@ public class HbaseVariantStorageEngine extends HadoopVariantStorageEngine {
     public List<StoragePipelineResult> index(List<URI> inputFiles, URI outdirUri, boolean doExtract, boolean
             doTransform, boolean doLoad) throws StorageEngineException {
         return super.index(inputFiles, outdirUri, doExtract, doTransform, doLoad);
+    }
+
+    @Override
+    public VariantHadoopDBAdaptor getDBAdaptor(String tableName) throws StorageEngineException {
+        String variantTableName = getVariantTableName();
+        logger.warn("Ignore table name {} -> use {} instead.", tableName, variantTableName);
+        return super.getDBAdaptor(variantTableName);
     }
 
     @Override
@@ -98,5 +110,17 @@ public class HbaseVariantStorageEngine extends HadoopVariantStorageEngine {
     @Override
     protected void calculateStatsForLoadedFiles(URI output, List<URI> files, List<StoragePipelineResult> results, ObjectMap options) throws StoragePipelineException {
         super.calculateStatsForLoadedFiles(output, files, results, options); // maybe be careful where to point to
+    }
+
+    @Override
+    public String getVariantTableName() {
+        String name = configuration.getStorageEngine(STORAGE_ENGINE_ID).getVariant().getOptions().getString
+                (DIVA_GENOME_ALLELE_VARIANT_TABLE_NAME, "");
+        if (StringUtils.isBlank(name)) {
+            throw new IllegalStateException("Please specify a variant table name using "
+                    + DIVA_GENOME_ALLELE_VARIANT_TABLE_NAME);
+        }
+        this.getOptions().put(VariantStorageEngine.Options.DB_NAME.key(), name);
+        return name;
     }
 }
