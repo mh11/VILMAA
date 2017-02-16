@@ -136,7 +136,11 @@ public class AlleleCountToHBaseConverter {
     }
 
     public static byte[] buildQualifier(String r, Integer key) {
-        return Bytes.toBytes(r + key);
+        return Bytes.toBytes(buildQualifierName(r, key));
+    }
+
+    public static String buildQualifierName(String r, Integer key) {
+        return r + key;
     }
 
     public static  byte[] buildQualifier(String r, String key) {

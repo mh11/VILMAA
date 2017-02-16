@@ -1,6 +1,5 @@
 package diva.genome.storage.hbase.allele.count;
 
-import antlr.collections.impl.IntRange;
 import com.google.common.collect.BiMap;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.commons.lang3.StringUtils;
@@ -18,16 +17,21 @@ import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import org.opencb.opencga.storage.hadoop.variant.converters.annotation.HBaseToVariantAnnotationConverter;
 import org.opencb.opencga.storage.hadoop.variant.converters.stats.HBaseToVariantStatsConverter;
 import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
+import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
 
 /**
+ * Convert HBase Variant table of allele counts to Variant object including Variant annotation and statistics if set.
+ * Supports {@link ResultSet} and {@link Result} provided by Phoenix query or Scan.
+ *
  * Created by mh719 on 27/01/2017.
  */
 public class HBaseAlleleCountsToVariantConverter {
@@ -45,14 +49,18 @@ public class HBaseAlleleCountsToVariantConverter {
     private boolean parseAnnotations = false;
     private boolean parseStatistics = false;
 
-    public HBaseAlleleCountsToVariantConverter(VariantTableHelper variantTableHelper, StudyConfiguration studyConfiguration) {
-        this.genomeHelper = variantTableHelper;
+    public HBaseAlleleCountsToVariantConverter(GenomeHelper genomeHelper, StudyConfiguration studyConfiguration) {
+        this.genomeHelper = genomeHelper;
         this.studyConfiguration = studyConfiguration;
         this.alleleCountConverter = new HBaseToAlleleCountConverter();
     }
 
     public void setAlleleCountConverter(HBaseToAlleleCountConverter alleleCountConverter) {
         this.alleleCountConverter = alleleCountConverter;
+    }
+
+    public void setMutableSamplesPosition(boolean mutableSamplesPosition) {
+        this.mutableSamplesPosition = mutableSamplesPosition;
     }
 
     public HBaseToAlleleCountConverter getAlleleCountConverter() {
@@ -65,6 +73,10 @@ public class HBaseAlleleCountsToVariantConverter {
 
     public void setParseStatistics(boolean parseStatistics) {
         this.parseStatistics = parseStatistics;
+    }
+
+    public void setStudyNameAsStudyId(boolean studyNameAsStudyId) {
+        this.studyNameAsStudyId = studyNameAsStudyId;
     }
 
     public HBaseToVariantAnnotationConverter getAnnotationConverter() {
@@ -93,7 +105,26 @@ public class HBaseAlleleCountsToVariantConverter {
         return annot;
     }
 
+    public VariantAnnotation parseAnnotation(ResultSet result) {
+        VariantAnnotation annot = null;
+        if (parseAnnotations) {
+            annot = getAnnotationConverter().convert(result);
+        }
+        if (annot == null) {
+            annot = new VariantAnnotation();
+            annot.setConsequenceTypes(Collections.emptyList());
+        }
+        return annot;
+    }
+
     public Map<Integer, Map<Integer, VariantStats>> parseStatistics(Result result) {
+        if (parseStatistics) {
+            return getStatsConverter().convert(result);
+        }
+        return Collections.emptyMap();
+    }
+
+    public Map<Integer, Map<Integer, VariantStats>> parseStatistics(ResultSet result) {
         if (parseStatistics) {
             return getStatsConverter().convert(result);
         }
@@ -155,6 +186,28 @@ public class HBaseAlleleCountsToVariantConverter {
         studyEntry.setStats(statsMap);
     }
 
+    private Variant convertRowKey(ResultSet resultSet) throws SQLException {
+        Variant variant = new Variant(
+                resultSet.getString(VariantPhoenixHelper.VariantColumn.CHROMOSOME.column()),
+                resultSet.getInt(VariantPhoenixHelper.VariantColumn.POSITION.column()),
+                resultSet.getString(VariantPhoenixHelper.VariantColumn.REFERENCE.column()),
+                resultSet.getString(VariantPhoenixHelper.VariantColumn.ALTERNATE.column()));
+        String type = resultSet.getString(VariantPhoenixHelper.VariantColumn.TYPE.column());
+        if (StringUtils.isNotBlank(type)) {
+            variant.setType(VariantType.valueOf(type));
+        }
+        return variant;
+    }
+
+    public Variant convert(ResultSet result) throws SQLException {
+        Variant variant = convertRowKey(result);
+        AlleleCountPosition bean = convertToAlleleCount(result);
+        variant = fillVariant(variant, bean);
+        addAnnotation(variant, parseAnnotation(result));
+        addStatistics(variant, parseStatistics(result));
+        return variant;
+    }
+
     public Variant convert(Result result) {
         Variant variant = convertRowKey(result.getRow());
         AlleleCountPosition bean = convertToAlleleCount(result);
@@ -165,6 +218,10 @@ public class HBaseAlleleCountsToVariantConverter {
     }
 
     private AlleleCountPosition convertToAlleleCount(Result result) {
+        return this.alleleCountConverter.convert(result);
+    }
+
+    private AlleleCountPosition convertToAlleleCount(ResultSet result) throws SQLException {
         return this.alleleCountConverter.convert(result);
     }
 

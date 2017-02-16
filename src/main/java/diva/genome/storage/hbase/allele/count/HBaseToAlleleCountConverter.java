@@ -8,13 +8,19 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.phoenix.schema.types.PUnsignedIntArray;
 
 import java.sql.Array;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
+ * Convert HBase count data into {@link AlleleCountPosition} object.
+ * Supports {@link ResultSet} and {@link Result} provided by Phoenix query or Scan.
+ *
  * Created by mh719 on 05/02/2017.
  */
 public class HBaseToAlleleCountConverter {
@@ -23,11 +29,29 @@ public class HBaseToAlleleCountConverter {
     public static final char FILTER_PASS_CHAR = 'P';
     public static final char VARIANT_PREFIX_CHAR= 'V';
 
+
+    public AlleleCountPosition convert(ResultSet resultSet) throws SQLException {
+        AlleleCountPosition calc = new AlleleCountPosition();
+        ResultSetMetaData metaData = resultSet.getMetaData();
+        for (int i = 0; i < metaData.getColumnCount(); i++) {
+            String columnName = metaData.getColumnName(i + 1);
+            if (columnName != null && !columnName.isEmpty()) {
+                byte[] bytes = resultSet.getBytes(columnName);
+                if (bytes != null) {
+                    addAlleleCounts(calc, columnName, () -> bytes);
+                }
+            }
+        }
+        return calc;
+    }
+
+
     public AlleleCountPosition convert(Result result) {
         try {
             AlleleCountPosition calc = new AlleleCountPosition();
             for (Cell cell : result.rawCells()) {
-                addAlleleCounts(calc, cell);
+                String column = Bytes.toString(CellUtil.cloneQualifier(cell));
+                addAlleleCounts(calc, column, () -> CellUtil.cloneValue(cell));
             }
             return calc;
         } catch (SQLException e) {
@@ -35,9 +59,8 @@ public class HBaseToAlleleCountConverter {
         }
     }
 
-    private List<Integer> getValueAsList(Cell cell) throws SQLException {
-
-        Array abc = (Array) PUnsignedIntArray.INSTANCE.toObject(CellUtil.cloneValue(cell));
+    private List<Integer> getValueAsList(byte[] bytes) throws SQLException {
+        Array abc = (Array) PUnsignedIntArray.INSTANCE.toObject(bytes);
         int[] coll = null;
         if (null != abc) {
             coll = (int[]) abc.getArray();
@@ -48,25 +71,26 @@ public class HBaseToAlleleCountConverter {
         return Arrays.stream(coll).boxed().collect(Collectors.toList());
     }
 
-    private void addAlleleCounts(AlleleCountPosition calc, Cell cell) throws SQLException {
-        String column = Bytes.toString(CellUtil.cloneQualifier(cell));
-        switch (column.charAt(0)) {
+
+    private void addAlleleCounts(AlleleCountPosition calc, String columnName, Supplier<byte[]> byteSupplier)
+            throws SQLException {
+        switch (columnName.charAt(0)) {
             case FILTER_FAIL_CHAR:
-                getValueAsList(cell).forEach(i -> calc.getNotPass().add(i));
+                getValueAsList(byteSupplier.get()).forEach(i -> calc.getNotPass().add(i));
                 break;
             case REFERENCE_PREFIX_CHAR:
-                Integer allele = Integer.valueOf(column.substring(1));
-                calc.getReference().put(allele, getValueAsList(cell));
+                Integer allele = Integer.valueOf(columnName.substring(1));
+                calc.getReference().put(allele, getValueAsList(byteSupplier.get()));
                 break;
             case VARIANT_PREFIX_CHAR:
-                if (StringUtils.contains(column, '_')) {
-                    String[] split = column.substring(1).split("_", 2);
+                if (StringUtils.contains(columnName, '_')) {
+                    String[] split = columnName.substring(1).split("_", 2);
                     allele = Integer.valueOf(split[1]);
                     calc.getAltMap().computeIfAbsent(split[0], k -> new HashMap<>())
-                            .put(allele, getValueAsList(cell));
+                            .put(allele, getValueAsList(byteSupplier.get()));
                 } else {
-                    allele = Integer.valueOf(column.substring(1));
-                    calc.getAlternate().put(allele, getValueAsList(cell));
+                    allele = Integer.valueOf(columnName.substring(1));
+                    calc.getAlternate().put(allele, getValueAsList(byteSupplier.get()));
                 }
                 break;
             default:

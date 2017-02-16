@@ -2,10 +2,16 @@ package diva.genome.storage.hbase.allele.opencga;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Connection;
+import org.opencb.biodata.models.variant.Variant;
+import org.opencb.commons.datastore.core.Query;
+import org.opencb.commons.datastore.core.QueryOptions;
+import org.opencb.opencga.core.results.VariantQueryResult;
 import org.opencb.opencga.storage.core.config.StorageConfiguration;
+import org.opencb.opencga.storage.core.variant.adaptors.VariantDBAdaptorUtils;
 import org.opencb.opencga.storage.hadoop.auth.HBaseCredentials;
 import org.opencb.opencga.storage.hadoop.variant.adaptors.HadoopVariantSourceDBAdaptor;
 import org.opencb.opencga.storage.hadoop.variant.adaptors.VariantHadoopDBAdaptor;
+import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantSqlQueryParser;
 
 import java.io.IOException;
 
@@ -15,6 +21,7 @@ import java.io.IOException;
 public class HBaseVariantDBAdaptor extends VariantHadoopDBAdaptor {
 
     private final HBaseVariantSourceDBAdaptor hBaseVariantSourceDBAdaptor;
+    private final AlleleSqlQueryParser alleleQueryParser;
 
     public HBaseVariantDBAdaptor(HBaseCredentials credentials, StorageConfiguration configuration, Configuration conf) throws IOException {
         this(null, credentials, configuration, getHbaseConfiguration(conf, credentials));
@@ -24,10 +31,24 @@ public class HBaseVariantDBAdaptor extends VariantHadoopDBAdaptor {
             configuration, Configuration conf) throws IOException {
         super(connection, credentials, configuration, conf);
         this.hBaseVariantSourceDBAdaptor = new HBaseVariantSourceDBAdaptor(getGenomeHelper());
+        this. alleleQueryParser =
+                new AlleleSqlQueryParser(getGenomeHelper(), this.getVariantTable(),
+                        new VariantDBAdaptorUtils(this), isClientSideSkip());
     }
 
     @Override
     public HadoopVariantSourceDBAdaptor getVariantSourceDBAdaptor() {
         return this.hBaseVariantSourceDBAdaptor;
     }
+
+    @Override
+    protected VariantSqlQueryParser getQueryParser() {
+        return this.alleleQueryParser;
+    }
+
+    @Override
+    public VariantQueryResult<Variant> get(Query query, QueryOptions options) {
+        return super.get(query, options);
+    }
+
 }
