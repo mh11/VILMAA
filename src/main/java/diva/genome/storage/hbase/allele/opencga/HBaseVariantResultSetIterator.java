@@ -21,7 +21,7 @@ import java.util.List;
  * Created by mh719 on 15/02/2017.
  */
 public class HBaseVariantResultSetIterator extends VariantHBaseResultSetIterator {
-    private static Logger logger = LoggerFactory.getLogger(HbaseVariantStorageEngine.class);
+    private static Logger logger = LoggerFactory.getLogger(HBaseVariantResultSetIterator.class);
 
     private final HBaseAlleleCountsToVariantConverter variantConverter;
 

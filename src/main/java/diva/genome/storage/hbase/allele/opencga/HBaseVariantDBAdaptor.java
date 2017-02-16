@@ -11,9 +11,14 @@ import org.opencb.opencga.storage.core.variant.adaptors.VariantDBAdaptorUtils;
 import org.opencb.opencga.storage.hadoop.auth.HBaseCredentials;
 import org.opencb.opencga.storage.hadoop.variant.adaptors.HadoopVariantSourceDBAdaptor;
 import org.opencb.opencga.storage.hadoop.variant.adaptors.VariantHadoopDBAdaptor;
+import org.opencb.opencga.storage.hadoop.variant.index.VariantHBaseResultSetIterator;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantSqlQueryParser;
 
 import java.io.IOException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.List;
 
 /**
  * Created by mh719 on 15/02/2017.
@@ -34,6 +39,14 @@ public class HBaseVariantDBAdaptor extends VariantHadoopDBAdaptor {
         this. alleleQueryParser =
                 new AlleleSqlQueryParser(getGenomeHelper(), this.getVariantTable(),
                         new VariantDBAdaptorUtils(this), isClientSideSkip());
+    }
+
+    @Override
+    protected VariantHBaseResultSetIterator buildResultSetIterator(QueryOptions options, Statement statement, ResultSet resultSet, List<String> returnedSamples) throws SQLException {
+        getLog().debug("Creating {} iterator", HBaseVariantResultSetIterator.class);
+        HBaseVariantResultSetIterator iterator = new HBaseVariantResultSetIterator(statement,
+                resultSet, getGenomeHelper(), getStudyConfigurationManager(), options, returnedSamples);
+        return iterator;
     }
 
     @Override
