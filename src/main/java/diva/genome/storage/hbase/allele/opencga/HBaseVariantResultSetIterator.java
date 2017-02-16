@@ -33,9 +33,13 @@ public class HBaseVariantResultSetIterator extends VariantHBaseResultSetIterator
                                          StudyConfigurationManager scm, QueryOptions options, List<String>
                                                  returnedSamples) throws SQLException {
         super(statement, resultSet, genomeHelper, scm, options, returnedSamples);
-        int studyId = genomeHelper.getStudyId();
-        QueryResult<StudyConfiguration> queryResult = scm.getStudyConfiguration(studyId, new QueryOptions
-                (StudyConfigurationManager.READ_ONLY, true));
+        Integer studyId = scm.getStudyIds(new QueryOptions()).get(0);
+        if (null == studyId || studyId < 0) {
+            throw new IllegalStateException("No Study ID found for: " + studyId);
+        }
+        GenomeHelper.setStudyId(genomeHelper.getConf(), studyId);
+        QueryResult<StudyConfiguration> queryResult = scm.getStudyConfiguration(studyId,
+                new QueryOptions(StudyConfigurationManager.READ_ONLY, true));
         if (queryResult.getResult().isEmpty()) {
             throw new IllegalStateException("No study found for study ID: " + studyId);
         }
