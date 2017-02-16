@@ -6,6 +6,7 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.phoenix.schema.types.PUnsignedIntArray;
+import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper;
 
 import java.sql.Array;
 import java.sql.ResultSet;
@@ -37,12 +38,20 @@ public class HBaseToAlleleCountConverter {
             String columnName = metaData.getColumnName(i + 1);
             if (columnName != null && !columnName.isEmpty()) {
                 byte[] bytes = resultSet.getBytes(columnName);
-                if (bytes != null) {
+                if (bytes != null && !isVariantIdColumns(columnName)) {
                     addAlleleCounts(calc, columnName, () -> bytes);
                 }
             }
         }
         return calc;
+    }
+
+    private boolean isVariantIdColumns(String columnName) {
+        return VariantPhoenixHelper.VariantColumn.CHROMOSOME.column().equals(columnName) ||
+                VariantPhoenixHelper.VariantColumn.POSITION.column().equals(columnName) ||
+                VariantPhoenixHelper.VariantColumn.REFERENCE.column().equals(columnName) ||
+                VariantPhoenixHelper.VariantColumn.ALTERNATE.column().equals(columnName) ||
+                VariantPhoenixHelper.VariantColumn.TYPE.column().equals(columnName);
     }
 
 
