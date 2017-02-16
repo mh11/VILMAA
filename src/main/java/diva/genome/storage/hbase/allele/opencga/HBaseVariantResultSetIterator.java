@@ -8,6 +8,8 @@ import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.core.metadata.StudyConfigurationManager;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import org.opencb.opencga.storage.hadoop.variant.index.VariantHBaseResultSetIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -19,6 +21,7 @@ import java.util.List;
  * Created by mh719 on 15/02/2017.
  */
 public class HBaseVariantResultSetIterator extends VariantHBaseResultSetIterator {
+    private static Logger logger = LoggerFactory.getLogger(HbaseVariantStorageEngine.class);
 
     private final HBaseAlleleCountsToVariantConverter variantConverter;
 
@@ -37,10 +40,13 @@ public class HBaseVariantResultSetIterator extends VariantHBaseResultSetIterator
             throw new IllegalStateException("No study found for study ID: " + studyId);
         }
         StudyConfiguration sc = queryResult.first();
+        logger.info("Prepare converter for study {} returning {} samples ", studyId, returnedSamples.size());
         this.variantConverter = new HBaseAlleleCountsToVariantConverter(genomeHelper, sc);
         this.variantConverter.setReturnSamples(returnedSamples);
         this.variantConverter.setMutableSamplesPosition(false);
         this.variantConverter.setStudyNameAsStudyId(true);
+        this.variantConverter.setParseAnnotations(true);
+        this.variantConverter.setParseStatistics(true);
     }
 
     @Override
