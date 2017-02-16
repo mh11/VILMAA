@@ -173,8 +173,8 @@ public class HBaseAlleleCountsToVariantConverter {
         if (convertedStatsMap == null) {
             return;
         }
-
-        StudyEntry studyEntry = variant.getStudy(Integer.valueOf(studyId).toString());
+        String studyName = studyConfiguration.getStudyName();
+        StudyEntry studyEntry = variant.getStudy(studyName);
         if (null == studyEntry) {
             return;
         }

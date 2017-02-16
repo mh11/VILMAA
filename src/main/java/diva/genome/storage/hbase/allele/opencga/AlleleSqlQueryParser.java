@@ -83,12 +83,19 @@ public class AlleleSqlQueryParser extends VariantSqlQueryParser {
         if (options.getBoolean(COUNT)) {
             return sb.append(" COUNT(*) ");
         } else {
-            logger.debug("Add query to options: {} ", query);
+            logger.debug("Add query to options: {} ", query.toJson());
+            query.forEach((key, value) -> {
+                options.put(key, value);
+                logger.debug("Add {} with {} to options ... ", key, value);
+            });
             options.putAll(query);
             Set<VariantField> returnedFields = VariantField.getReturnedFields(options);
-            logger.debug("Returned Fields found: ", returnedFields);
+            logger.debug("Returned Fields found: {} ", Arrays.toString(returnedFields.toArray()));
 
-            List<Integer> studyIds = getUtils().getStudyIds(options.getAsList(RETURNED_STUDIES.key()), options);
+            List<Object> studyOptionList = options.getAsList(RETURNED_STUDIES.key());
+            logger.debug("Found {} study id options ...", Arrays.toString(studyOptionList.toArray()));
+            List<Integer> studyIds = getUtils().getStudyIds(studyOptionList, options);
+
             if (studyIds == null || studyIds.isEmpty()) {
                 studyIds = getUtils().getStudyIds(options);
             }
@@ -96,7 +103,7 @@ public class AlleleSqlQueryParser extends VariantSqlQueryParser {
                 throw new IllegalStateException("Currently only one Study is supported, but found " + studyIds);
             }
 
-            logger.debug("Returned studyIds found: ", studyIds);
+            logger.debug("Returned studyIds found: {} ", Arrays.toString(studyIds.toArray()));
 
             sb.append(VariantPhoenixHelper.VariantColumn.CHROMOSOME).append(',')
                     .append(VariantPhoenixHelper.VariantColumn.POSITION).append(',')
@@ -113,7 +120,8 @@ public class AlleleSqlQueryParser extends VariantSqlQueryParser {
                     if (returnedFields.contains(VariantField.STUDIES_STATS)) {
                         StudyConfiguration studyConfiguration = getUtils().getStudyConfigurationManager()
                                 .getStudyConfiguration(studyId, null).first();
-                        for (Integer cohortId : studyConfiguration.getCalculatedStats()) {
+                        for (Integer cohortId : studyConfiguration.getCohortIds().values()) {
+//                        for (Integer cohortId : studyConfiguration.getCalculatedStats()) {
                             PhoenixHelper.Column statsColumn = getStatsColumn(studyId, cohortId);
                             sb.append(",\"").append(statsColumn.column()).append('"');
                         }
