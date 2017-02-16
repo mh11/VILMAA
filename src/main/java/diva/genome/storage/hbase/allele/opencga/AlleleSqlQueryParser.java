@@ -14,6 +14,8 @@ import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.PhoenixHelper;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantSqlQueryParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,6 +32,7 @@ import static org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPho
  * Created by mh719 on 15/02/2017.
  */
 public class AlleleSqlQueryParser extends VariantSqlQueryParser {
+    private static Logger logger = LoggerFactory.getLogger(AlleleSqlQueryParser.class);
 
 
     public static final String ONE_REF = Bytes.toString(buildQualifier(REFERENCE_PREFIX, 1));
@@ -82,6 +85,7 @@ public class AlleleSqlQueryParser extends VariantSqlQueryParser {
         } else {
 
             Set<VariantField> returnedFields = VariantField.getReturnedFields(options);
+            logger.debug("Returned Fields found: ", returnedFields);
 
             List<Integer> studyIds = getUtils().getStudyIds(options.getAsList(RETURNED_STUDIES.key()), options);
             if (studyIds == null || studyIds.isEmpty()) {
@@ -91,13 +95,15 @@ public class AlleleSqlQueryParser extends VariantSqlQueryParser {
                 throw new IllegalStateException("Currently only one Study is supported, but found " + studyIds);
             }
 
+            logger.debug("Returned studyIds found: ", studyIds);
+
             sb.append(VariantPhoenixHelper.VariantColumn.CHROMOSOME).append(',')
                     .append(VariantPhoenixHelper.VariantColumn.POSITION).append(',')
                     .append(VariantPhoenixHelper.VariantColumn.REFERENCE).append(',')
                     .append(VariantPhoenixHelper.VariantColumn.ALTERNATE).append(',')
                     .append(VariantPhoenixHelper.VariantColumn.TYPE);
 
-            if (returnedFields.contains(VariantField.STUDIES)) {
+//            if (returnedFields.contains(VariantField.STUDIES)) {
                 for (Integer studyId : studyIds) {
                     List<String> studyColumns = STUDY_COLUMNS;
                     for (String studyColumn : studyColumns) {
@@ -111,7 +117,7 @@ public class AlleleSqlQueryParser extends VariantSqlQueryParser {
                             sb.append(",\"").append(statsColumn.column()).append('"');
                         }
                     }
-                }
+//                }
             }
 
             if (returnedFields.contains(VariantField.ANNOTATION)) {
