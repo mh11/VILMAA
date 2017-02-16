@@ -236,14 +236,14 @@ public class HBaseAlleleCountsToVariantConverter {
         if (StringUtils.isBlank(variant.getReference()) && variant.getType().equals(VariantType.NO_VARIATION)) {
             variant.setReference("N");
         }
-        LinkedHashMap<String, Integer> returnedSamplesPosition = buildReturnSamplePositionMap();
         Map<String, String> attributesMap = new HashMap<>();
         Set<Integer> loadedSamples = new HashSet<>();
         BiMap<String, Integer> indexedSamples = StudyConfiguration.getIndexedSamples(studyConfiguration);
-        if (!this.returnedSamples.isEmpty()) {
-            this.returnedSamples.forEach(name -> loadedSamples.add(indexedSamples.get(name)));
-            logger.debug("Used {} returned samples and found {} to load ...", this.returnedSamples.size(), loadedSamples.size());
-        }
+        LinkedHashMap<String, Integer> returnedSamplesPosition = buildReturnSamplePositionMap();
+        returnedSamplesPosition.forEach((name, position) -> loadedSamples.add(indexedSamples.get(name)));
+        logger.debug("Used {} and {} map returned samples and found {} to load ...",
+                this.returnedSamples.size(), returnedSamplesPosition.size(), loadedSamples.size());
+
         List<String> format = Arrays.asList(VariantMerger.GT_KEY, VariantMerger.GENOTYPE_FILTER_KEY);
         bean.filterIds(loadedSamples);
         if (loadedSamples.size() > 0) {
