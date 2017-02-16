@@ -1,6 +1,5 @@
 package diva.genome.storage.hbase.allele;
 
-import diva.genome.storage.hbase.allele.count.AbstractAlleleDriver;
 import diva.genome.storage.hbase.allele.transfer.HbaseTransferAlleleMapper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Scan;

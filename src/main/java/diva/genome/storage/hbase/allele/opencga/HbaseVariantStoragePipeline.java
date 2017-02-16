@@ -2,7 +2,7 @@ package diva.genome.storage.hbase.allele.opencga;
 
 import diva.genome.storage.hbase.allele.AlleleCalculatorDriver;
 import diva.genome.storage.hbase.allele.AlleleTransferDriver;
-import diva.genome.storage.hbase.allele.count.AbstractAlleleDriver;
+import diva.genome.storage.hbase.allele.AbstractAlleleDriver;
 import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;

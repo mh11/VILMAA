@@ -1,4 +1,4 @@
-package diva.genome.storage.hbase.allele.count;
+package diva.genome.storage.hbase.allele;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;

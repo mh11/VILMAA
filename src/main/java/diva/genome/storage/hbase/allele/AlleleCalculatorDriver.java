@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static diva.genome.storage.hbase.allele.count.AbstractAlleleDriver.CONFIG_COUNT_TABLE;
+import static diva.genome.storage.hbase.allele.AbstractAlleleDriver.CONFIG_COUNT_TABLE;
 
 /**
  * Created by mh719 on 30/01/2017.
