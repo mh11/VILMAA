@@ -203,7 +203,7 @@ public class HBaseAlleleCountsToVariantConverter {
 
     public Variant convert(ResultSet result) throws SQLException {
         Variant variant = convertRowKey(result);
-        logger.debug("Fill {} with allele count ...", variant);
+//        logger.debug("Fill {} with allele count ...", variant);
         AlleleCountPosition bean = convertToAlleleCount(result);
         if (logger.isDebugEnabled()) {
             logger.debug("Loaded bean with {} ", bean.toDebugString());
@@ -241,8 +241,8 @@ public class HBaseAlleleCountsToVariantConverter {
         BiMap<String, Integer> indexedSamples = StudyConfiguration.getIndexedSamples(studyConfiguration);
         LinkedHashMap<String, Integer> returnedSamplesPosition = buildReturnSamplePositionMap();
         returnedSamplesPosition.forEach((name, position) -> loadedSamples.add(indexedSamples.get(name)));
-        logger.debug("Used {} and {} map returned samples and found {} to load ...",
-                this.returnedSamples.size(), returnedSamplesPosition.size(), loadedSamples.size());
+//        logger.debug("Used {} and {} map returned samples and found {} to load ...",
+//                this.returnedSamples.size(), returnedSamplesPosition.size(), loadedSamples.size());
 
         List<String> format = Arrays.asList(VariantMerger.GT_KEY, VariantMerger.GENOTYPE_FILTER_KEY);
         bean.filterIds(loadedSamples);
@@ -283,7 +283,7 @@ public class HBaseAlleleCountsToVariantConverter {
         /* Fill Sample data  */
         Set<Integer> notPassSet = new HashSet<>(bean.getNotPass());
         Map<Integer, String> sampleIdToGts = buildGts(loadedSamples, bean, altIndex, variant);
-        logger.debug("Fount {} GTs ... ", sampleIdToGts.size());
+//        logger.debug("Fount {} GTs ... ", sampleIdToGts.size());
         sampleIdToGts.forEach((sampleId, genotype) -> {
             String sampleName = mapSampleIds.get(sampleId);
             Integer sampleIdx = returnedSamplesPosition.get(sampleName);
@@ -338,13 +338,13 @@ public class HBaseAlleleCountsToVariantConverter {
             studyEntry = new StudyEntry(Integer.toString(studyConfiguration.getStudyId()));
         }
         studyEntry.setSortedSamplesPosition(returnedSamplesPosition);
-        logger.debug("Add {} samples data ... ", samplesData.size());
+//        logger.debug("Add {} samples data ... ", samplesData.size());
         studyEntry.setSamplesData(samplesData);
         studyEntry.setFormat(format);
         studyEntry.setFiles(Collections.singletonList(new FileEntry("", "", attributesMap)));
-        logger.debug("Add {} secAltArr data ... ", secAltArr.size());
+//        logger.debug("Add {} secAltArr data ... ", secAltArr.size());
         studyEntry.setSecondaryAlternates(secAltArr);
-        logger.debug("Add study entry of {} to variant ... ", studyEntry.getStudyId());
+//        logger.debug("Add study entry of {} to variant ... ", studyEntry.getStudyId());
         variant.addStudyEntry(studyEntry);
         return variant;
     }
