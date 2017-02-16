@@ -15,10 +15,8 @@ import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 
-import static diva.genome.storage.hbase.allele.AlleleTransferDriver.CONFIG_ANALYSIS_TABLE;
 import static org.opencb.opencga.storage.hadoop.variant.AbstractAnalysisTableDriver.OPENCGA_ANALYSIS_REGION;
 import static org.opencb.opencga.storage.hadoop.variant.AbstractAnalysisTableDriver.parseRegion;
 import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.CONFIG_VARIANT_FILE_IDS;
