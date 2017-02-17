@@ -48,7 +48,7 @@ public class HbaseVariantStorageEngine extends HadoopVariantStorageEngine {
     public VariantHadoopDBAdaptor getDBAdaptor(String tableName) throws StorageEngineException {
         String variantTableName = getVariantTableName();
         logger.warn("Ignore table name {} -> use {} instead.", tableName, variantTableName);
-        return super.getDBAdaptor(variantTableName);
+        return getDBAdaptor(buildCredentials(variantTableName));
     }
 
     @Override
@@ -121,6 +121,6 @@ public class HbaseVariantStorageEngine extends HadoopVariantStorageEngine {
                     + DIVA_GENOME_ALLELE_VARIANT_TABLE_NAME);
         }
         this.getOptions().put(VariantStorageEngine.Options.DB_NAME.key(), name);
-        return name;
+        return getVariantTableName(name);
     }
 }
