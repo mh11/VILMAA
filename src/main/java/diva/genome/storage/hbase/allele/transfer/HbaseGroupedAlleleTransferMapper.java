@@ -28,7 +28,7 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
     protected volatile Map<Integer, Map<Integer, Integer>> deletionEnds = new HashMap<>();
     protected volatile AlleleCombiner alleleCombiner;
     protected AlleleCountToHBaseConverter converter;
-    private HBaseAppendGroupedToAlleleCountConverter groupedConverter;
+    protected HBaseAppendGroupedToAlleleCountConverter groupedConverter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -139,7 +139,7 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
         old.forEach(o -> deletionEnds.remove(o));
     }
 
-    private void processVariants(AlleleCountPosition refBean, List<Pair<Variant, AlleleCountPosition>> variants,
+    protected void processVariants(AlleleCountPosition refBean, List<Pair<Variant, AlleleCountPosition>> variants,
                                  Consumer<Put> submitFunction) {
 
 
@@ -188,7 +188,7 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
     }
 
 
-    private Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
+    protected Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
         this.alleleCombiner.combine(variant, from, to, this.deletionEnds);
         return this.converter.convertPut(variant.getChromosome(), variant.getStart(),
                 variant.getReference(), variant.getAlternate(), variant.getType(), to);
