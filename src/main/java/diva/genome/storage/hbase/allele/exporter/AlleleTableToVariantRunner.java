@@ -43,6 +43,7 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
         BiMap<String, Integer> indexedSamples = StudyConfiguration.getIndexedSamples(getStudyConfiguration());
         variantConverter = new HBaseAlleleCountsToVariantConverter(getHelper(), getStudyConfiguration());
         variantConverter.setReturnSamples(indexedSamples.keySet());
+        variantConverter.setStudyNameAsStudyId(true);
         QueryOptions options = new QueryOptions();
         VariantSourceDBAdaptor source = new HadoopVariantSourceDBAdaptor(getHelper());
 
