@@ -239,7 +239,7 @@ public class HbaseTransferAlleleMapper extends AbstractVariantTableMapReduce {
                 variant.getChromosome(), variant.getStart(), StringUtils.EMPTY, Allele.NO_CALL_STRING));
         Result res = getHelper().getHBaseManager().act(getHelper().getOutputTable(), table -> table.get(get));
         if (res.isEmpty()) {
-            throw new IllegalStateException(
+            getLog().warn(
                     "No entry found for reference " + variant.getChromosome() + ":" + variant.getStart());
         }
         return res;

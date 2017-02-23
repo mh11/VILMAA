@@ -58,6 +58,9 @@ public class HBaseToAlleleCountConverter {
     public AlleleCountPosition convert(Result result) {
         try {
             AlleleCountPosition calc = new AlleleCountPosition();
+            if (result.isEmpty()) {
+		return calc;
+            }
             for (Cell cell : result.rawCells()) {
                 String column = Bytes.toString(CellUtil.cloneQualifier(cell));
                 addAlleleCounts(calc, column, () -> CellUtil.cloneValue(cell));
