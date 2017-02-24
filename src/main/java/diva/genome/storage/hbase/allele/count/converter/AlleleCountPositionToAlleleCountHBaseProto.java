@@ -23,7 +23,7 @@ public class AlleleCountPositionToAlleleCountHBaseProto {
         this.bout = new ByteArrayOutputStream();
     }
 
-    private byte[] toBytes(MessageLite msg) {
+    public byte[] toBytes(MessageLite msg) {
         bout.reset();
         try {
             msg.writeDelimitedTo(bout);
@@ -71,14 +71,16 @@ public class AlleleCountPositionToAlleleCountHBaseProto {
         });
     }
 
-    public ReferenceCountHBaseProto convert(AlleleCountPosition position) {
-        ReferenceCountHBaseProto.Builder builder = ReferenceCountHBaseProto.newBuilder();
-        return builder.setPassCount(position.getPass().size())
+    public ReferenceCountHBaseProto.Builder convertToBuilder(AlleleCountPosition position) {
+        return ReferenceCountHBaseProto.newBuilder().setPassCount(position.getPass().size())
                 .setHomRefCount(position.getReference().containsKey(2) ? position.getReference().get(2).size() : 0)
                 .setNotPass(toSampleList(position.getNotPass()))
                 .setReference(toAlleleMap(position.getReference(), true))
-                .setAlternates(toAlternates(position.getAltMap()))
-                .build();
+                .setAlternates(toAlternates(position.getAltMap()));
+    }
+
+    public ReferenceCountHBaseProto convert(AlleleCountPosition position) {
+        return convertToBuilder(position).build();
     }
 
     private AlternateCount toAlternates(Map<String, Map<Integer, List<Integer>>> input) {

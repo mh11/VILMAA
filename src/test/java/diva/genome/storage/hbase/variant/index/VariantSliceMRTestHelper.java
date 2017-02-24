@@ -107,7 +107,6 @@ public class VariantSliceMRTestHelper {
         });
         this.chromosome = chrSet.stream().findFirst().get();
         this.position = posSet.stream().findFirst().get();
-
     }
 
     public StudyConfiguration loadConfiguration() throws IOException {

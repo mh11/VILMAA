@@ -28,3 +28,10 @@ message ReferenceCountHBaseProto {
     AlleleMap reference = 4;
     AlternateCount alternates = 6;
 }
+
+message PositionCountHBaseProto {
+    uint32 start = 1;
+    string variantId = 2;
+    ReferenceCountHBaseProto alleleCount = 3;
+}
+

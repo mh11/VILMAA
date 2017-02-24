@@ -1,5 +1,7 @@
 package diva.genome.storage.hbase.allele.count;
 
+import diva.genome.storage.hbase.allele.count.converter.AllelCountToHBaseSingleConverter;
+import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseAppendConverter;
 import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseAppendGroupedConverter;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -29,7 +31,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
     private final AtomicBoolean asyncPut = new AtomicBoolean(false);
     private final AtomicBoolean asyncFinished = new AtomicBoolean(false);
     private volatile Future<String> submitFuture;
-    private volatile AlleleCountToHBaseAppendGroupedConverter converter;
+    private volatile AlleleCountToHBaseAppendConverter converter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -44,14 +46,14 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
                     f -> context.getCounter(COUNTER_GROUP_NAME, "async-received").increment(f.size()),
                     f -> context.getCounter(COUNTER_GROUP_NAME, "async-submitted").increment(f.size()));
         }
-        converter = new AlleleCountToHBaseAppendGroupedConverter(getHelper().getColumnFamily());
+        converter = new AllelCountToHBaseSingleConverter(getHelper().getColumnFamily(), getHelper().getStudyId() + "");
     }
 
     public void setAsyncPut(boolean asyncPut) {
         this.asyncPut.set(asyncPut);
     }
 
-    public void setConverter(AlleleCountToHBaseAppendGroupedConverter converter) {
+    public void setConverter(AlleleCountToHBaseAppendConverter converter) {
         this.converter = converter;
     }
 
@@ -251,31 +253,11 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
         }
     }
 
-
     private Collection<Append> packageAlleleCounts(String chromosome, String studyId, HBaseAlleleCalculator alleleCalculator) {
-            AlleleCountToHBaseConverter converter =
-                    new AlleleCountToHBaseConverter(getHelper().getColumnFamily(), studyId);
-            List<Append> appends = new ArrayList<>();
-            /* Convert Reference rows */
-            alleleCalculator.forEachPosition((position, count) -> {
-                        Append convert = converter.convert(chromosome, position, count);
-                        if (null != convert) {
-                            appends.add(convert);
-                        }
-                    }
-            );
-            /* Convert Variant rows */
-            alleleCalculator.forEachVariantPosition(position -> alleleCalculator.forEachVariant(position, (var, count) -> {
-                appends.add(converter.convert(chromosome, position, var, count));
-            }));
-        return appends;
+        return converter.convert(chromosome,
+    /* Convert Reference rows */
+                alleleCalculator.buildReferenceMap(),
+    /* Convert Variant rows */
+                alleleCalculator.buildVariantMap());
     }
-
-//    private Collection<Append> packageAlleleCounts(String chromosome, String studyId, HBaseAlleleCalculator alleleCalculator) {
-//        return converter.convert(chromosome,
-//    /* Convert Reference rows */
-//                alleleCalculator.buildReferenceMap(),
-//    /* Convert Variant rows */
-//                alleleCalculator.buildVariantMap());
-//    }
 }

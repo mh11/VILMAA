@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Created by mh719 on 08/02/2017.
  */
-public class AlleleCountToHBaseAppendGroupedConverter {
+public class AlleleCountToHBaseAppendGroupedConverter implements AlleleCountToHBaseAppendConverter {
 
     public static final char PREFIX_REFERENCE = 'Y';
     public static final char PREFIX_VARIANT = 'Z';
@@ -33,6 +33,7 @@ public class AlleleCountToHBaseAppendGroupedConverter {
         return columnFamily;
     }
 
+    @Override
     public Collection<Append> convert(String chromosome, Map<Integer, AlleleCountPosition> referenceMap, Map<Integer, Map<String, AlleleCountPosition>> variantMap) {
         Map<Integer, Map<Integer, AlleleCountPosition>> regionMap = new HashMap<>();
         Map<Integer, Map<Integer, Map<String, AlleleCountPosition>>> regionVarMap = new HashMap<>();
