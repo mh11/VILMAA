@@ -9,7 +9,6 @@ import diva.genome.storage.models.samples.avro.SampleInformation;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
@@ -92,6 +91,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         hBaseAlleleCountsToAllelesConverter.setMutableSamplesPosition(true);
         hBaseAlleleCountsToAllelesConverter.setParseAnnotations(true);
         hBaseAlleleCountsToAllelesConverter.setParseStatistics(true);
+        hBaseAlleleCountsToAllelesConverter.setCohortWhiteList(this.exportCohort);
     }
 
     protected void prepareAvroWriter(Runnable runnable) throws IOException {

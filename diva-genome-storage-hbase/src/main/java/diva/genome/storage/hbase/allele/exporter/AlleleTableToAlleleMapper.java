@@ -68,6 +68,7 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
         converter.setMutableSamplesPosition(true);
         converter.setParseAnnotations(true);
         converter.setParseStatistics(true);
+        converter.setCohortWhiteList(this.exportCohort);
         return converter;
     }
 

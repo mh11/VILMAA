@@ -37,6 +37,7 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
     private boolean mutableSamplesPosition = true;
     private boolean parseAnnotations = false;
     private boolean parseStatistics = false;
+    private Set<String> cohortWhiteList = new HashSet<>();
 
     public AbstractHBaseAlleleCountsConverter(StudyConfiguration studyConfiguration, GenomeHelper genomeHelper) {
         this.studyConfiguration = studyConfiguration;
@@ -159,7 +160,9 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
                 BiMap<Integer, String> cohortIds = studyConfiguration.getCohortIds().inverse();
                 for (Map.Entry<Integer, VariantStats> entry : convertedStatsMap.entrySet()) {
                     String cohortName = cohortIds.get(entry.getKey());
-                    statsMap.put(cohortName, entry.getValue());
+                    if (!this.cohortWhiteList.isEmpty() && this.cohortWhiteList.contains(cohortName)) {
+                        statsMap.put(cohortName, entry.getValue());
+                    }
                 }
             }
         }
@@ -248,5 +251,13 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
         attributesMap.put("OPR", String.valueOf(opr)); // OVERALL pass rate
         attributesMap.put("NS", String.valueOf(loadedSamplesSize)); // Number of Samples
         return attributesMap;
+    }
+
+    public void setCohortWhiteList(Set<String> cohortWhiteList) {
+        this.cohortWhiteList = cohortWhiteList;
+    }
+
+    public Set<String> getCohortWhiteList() {
+        return cohortWhiteList;
     }
 }
