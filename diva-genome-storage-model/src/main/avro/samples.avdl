@@ -1,0 +1,13 @@
+@namespace("diva.genome.storage.models.samples.avro")
+
+protocol Samples {
+
+    record SampleInformation {
+        string sampleName;
+        int sampleId;
+    }
+
+    record SampleCollection {
+        array<SampleInformation> samples;
+    }
+}

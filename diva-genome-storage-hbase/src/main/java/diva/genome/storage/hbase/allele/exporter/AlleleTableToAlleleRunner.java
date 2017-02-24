@@ -1,10 +1,15 @@
 package diva.genome.storage.hbase.allele.exporter;
 
+import com.google.common.collect.BiMap;
 import diva.genome.storage.hbase.allele.AbstractLocalRunner;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.samples.avro.SampleCollection;
+import diva.genome.storage.models.samples.avro.SampleInformation;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
@@ -39,6 +44,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     @Override
     protected void map(Scan scan, String variantTable) {
         prepareConverter();
+        prepareSampleFile();
         try {
             prepareAvroWriter(() -> super.map(scan, variantTable));
         } catch (IOException e) {
@@ -46,9 +52,25 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         }
     }
 
-    private void prepareConverter() {
+    private void prepareSampleFile() {
+        File file = getSampleInfoOutputFile();
         StudyConfiguration sc = getStudyConfiguration();
+        BiMap<Integer, String> idx = StudyConfiguration.getIndexedSamples(sc).inverse();
+        SampleCollection collection = SampleCollection.newBuilder()
+                .setSamples(this.returnedSampleIds.stream()
+                        .map(id -> SampleInformation.newBuilder().setSampleId(id).setSampleName(idx.get(id)).build())
+                        .collect(Collectors.toList()))
+                .build();
+        try {
+            FileUtils.write(file, collection.toString(), false);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
 
+    private void prepareConverter() {
+        this.returnedSampleIds = new HashSet<>();
+        StudyConfiguration sc = getStudyConfiguration();
         Set<Integer> availableSamples = StudyConfiguration.getIndexedSamples(sc).values();
         this.exportCohort = new HashSet<>(Arrays.asList(
                 getConf().getStrings(CONFIG_ANALYSIS_EXPORT_COHORTS, "ALL")));
@@ -71,6 +93,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
 
     protected void prepareAvroWriter(Runnable runnable) throws IOException {
         File outputFile = getOutputFile();
+        File infoOutputFile = getSampleInfoOutputFile();
         this.dataFileWriter = new DataFileWriter<>(
                 new SpecificDatumWriter<>(AllelesAvro.class));
         try {
@@ -82,11 +105,20 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     }
 
     private File getOutputFile() {
-        String outPath = getConf().get(OUTPUT_FILE, StringUtils.EMPTY);
-        if (StringUtils.isBlank(outPath)) {
+        return checkFile(getConf().get(OUTPUT_FILE, StringUtils.EMPTY));
+    }
+
+    private File getSampleInfoOutputFile() {
+        String path = getConf().get(OUTPUT_FILE, StringUtils.EMPTY);
+        checkFile(path);
+        return checkFile(path + ".samples.json");
+    }
+
+    private File checkFile(String path) {
+        if (StringUtils.isBlank(path)) {
             throw new IllegalStateException("File output paramter required: " + OUTPUT_FILE);
         }
-        File outFile = new File(outPath);
+        File outFile = new File(path);
         if (outFile.exists()) {
             throw new IllegalStateException("File output already exists !!!");
         }
