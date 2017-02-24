@@ -39,6 +39,9 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
 
     @Override
     protected void addAnnotation(AllelesAvro.Builder filled, VariantAnnotation variantAnnotation) {
+        if (null == variantAnnotation) {
+            variantAnnotation = new VariantAnnotation();
+        }
         filled.setAnnotation(variantAnnotation);
     }
 

@@ -150,22 +150,18 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
     }
 
     protected void addStatistics(T filled, Map<Integer, Map<Integer, VariantStats>> stats) {
-        if (stats == null) {
-            return;
-        }
-
-        int studyId = studyConfiguration.getStudyId();
-        Map<Integer, VariantStats> convertedStatsMap = stats.get(studyId);
-        if (convertedStatsMap == null) {
-            return;
-        }
+        Map<String, VariantStats> statsMap = new HashMap<>();
         String studyName = studyConfiguration.getStudyName();
-
-        BiMap<Integer, String> cohortIds = studyConfiguration.getCohortIds().inverse();
-        Map<String, VariantStats> statsMap = new HashMap<>(convertedStatsMap.size());
-        for (Map.Entry<Integer, VariantStats> entry : convertedStatsMap.entrySet()) {
-            String cohortName = cohortIds.get(entry.getKey());
-            statsMap.put(cohortName, entry.getValue());
+        if (stats != null) {
+            int studyId = studyConfiguration.getStudyId();
+            Map<Integer, VariantStats> convertedStatsMap = stats.get(studyId);
+            if (convertedStatsMap != null) {
+                BiMap<Integer, String> cohortIds = studyConfiguration.getCohortIds().inverse();
+                for (Map.Entry<Integer, VariantStats> entry : convertedStatsMap.entrySet()) {
+                    String cohortName = cohortIds.get(entry.getKey());
+                    statsMap.put(cohortName, entry.getValue());
+                }
+            }
         }
         addStatistics(filled, studyName, statsMap);
     }
