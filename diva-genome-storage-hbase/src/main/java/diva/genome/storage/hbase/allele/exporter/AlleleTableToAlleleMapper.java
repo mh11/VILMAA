@@ -127,6 +127,6 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
 
 
     protected AllelesAvro convertToVariant(Result value) {
-        return this.getHBaseAlleleCountsToAllelesConverter().convert(value);
+        return this.getHBaseAlleleCountsToAllelesConverter().convert(value).build();
     }
 }

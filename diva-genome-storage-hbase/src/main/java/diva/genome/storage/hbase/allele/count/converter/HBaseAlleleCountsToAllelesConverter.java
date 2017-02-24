@@ -21,7 +21,7 @@ import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CA
 /**
  * Created by mh719 on 24/02/2017.
  */
-public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCountsConverter<AllelesAvro> {
+public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCountsConverter<AllelesAvro.Builder> {
 
     private Logger logger = LoggerFactory.getLogger(HBaseAlleleCountsToAllelesConverter.class);
     private volatile Set<Integer> loadedSamples = null;
@@ -31,14 +31,14 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
     }
 
     @Override
-    protected void addStatistics(AllelesAvro filled, String studyName, Map<String, VariantStats> statsMap) {
+    protected void addStatistics(AllelesAvro.Builder filled, String studyName, Map<String, VariantStats> statsMap) {
         HashMap<String, org.opencb.biodata.models.variant.avro.VariantStats> map = new HashMap(statsMap.size());
         statsMap.forEach((key, val) -> map.put(key, val.getImpl()));
         filled.setStats(map);
     }
 
     @Override
-    protected void addAnnotation(AllelesAvro filled, VariantAnnotation variantAnnotation) {
+    protected void addAnnotation(AllelesAvro.Builder filled, VariantAnnotation variantAnnotation) {
         filled.setAnnotation(variantAnnotation);
     }
 
@@ -54,7 +54,7 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
     }
 
     @Override
-    protected AllelesAvro doConvert(Variant variant, AlleleCountPosition bean) {
+    protected AllelesAvro.Builder doConvert(Variant variant, AlleleCountPosition bean) {
         ensureSamples();
         // add basic variant info
         AllelesAvro.Builder builder = AllelesAvro.newBuilder()
@@ -86,7 +86,7 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         builder.setNotPass(bean.getNotPass());
         // add Allele Count
         builder.setAlleleCount(buildAlleleCount(bean));
-        return builder.build();
+        return builder;
     }
 
     private AlleleCount buildAlleleCount(AlleleCountPosition bean) {
