@@ -110,7 +110,7 @@ public class AlleleStatsCalculatorTest {
     public Variant convertBack(Variant input, AlleleCountPosition validate) {
         Variant variant = new Variant(input.getChromosome(), input.getStart(), input.getEnd(), input.getReference(), input.getAlternate(), input.getStrand());
         variant.setType(input.getType());
-        variant = this.variantConverter.fillVariant(variant, validate);
+        variant = this.variantConverter.doConvert(variant, validate);
         System.out.println("variant = " + variant.getImpl());
         return variant;
     }
