@@ -36,7 +36,8 @@
     </developers>
 
     <modules>
-      <module>diva-genome-storage-hbase</module>
+        <module>diva-genome-storage-model</module>
+        <module>diva-genome-storage-hbase</module>
     </modules>
 
     <dependencyManagement>
