@@ -90,6 +90,8 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         hBaseAlleleCountsToAllelesConverter = new HBaseAlleleCountsToAllelesConverter(getHelper(), sc);
         hBaseAlleleCountsToAllelesConverter.setReturnSampleIds(this.returnedSampleIds);
         hBaseAlleleCountsToAllelesConverter.setMutableSamplesPosition(true);
+        hBaseAlleleCountsToAllelesConverter.setParseAnnotations(true);
+        hBaseAlleleCountsToAllelesConverter.setParseStatistics(true);
     }
 
     protected void prepareAvroWriter(Runnable runnable) throws IOException {

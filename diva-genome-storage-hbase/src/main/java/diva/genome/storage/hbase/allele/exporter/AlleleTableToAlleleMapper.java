@@ -66,7 +66,8 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
                 HBaseAlleleCountsToAllelesConverter(this.getHelper(), this.getStudyConfiguration());
         converter.setReturnSampleIds(this.returnedSampleIds);
         converter.setMutableSamplesPosition(true);
-//        converter.set
+        converter.setParseAnnotations(true);
+        converter.setParseStatistics(true);
         return converter;
     }
 
