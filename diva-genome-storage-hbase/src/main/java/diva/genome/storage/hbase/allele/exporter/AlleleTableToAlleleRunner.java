@@ -93,7 +93,6 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
 
     protected void prepareAvroWriter(Runnable runnable) throws IOException {
         File outputFile = getOutputFile();
-        File infoOutputFile = getSampleInfoOutputFile();
         this.dataFileWriter = new DataFileWriter<>(
                 new SpecificDatumWriter<>(AllelesAvro.class));
         try {
