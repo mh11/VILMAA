@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
+import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CALL;
+
 /**
  * Created by mh719 on 24/02/2017.
  */
@@ -118,13 +120,18 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         if (!oneRef.isEmpty()) {
             refs.put(1, new ArrayList<>(oneRef));
         }
+        List<Integer> nocall = new ArrayList<>();
         bean.getReference().forEach((k, v) -> {
-            if (k < 1 || k > 2) {
+            if (k == NO_CALL) {
+                nocall.addAll(v);
+            } else if (k < 1 || k > 2) {
                 refs.put(k, v);
             }
         });
 
+
         builder.setReferenceAlleleCounts(refs)
+                .setNoCall(nocall)
                 .setHet(hets)
                 .setHomVar(homVar)
                 .setAltAlleleCounts(alts)
