@@ -53,7 +53,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         this.exportCohort = new HashSet<>(Arrays.asList(
                 getConf().getStrings(CONFIG_ANALYSIS_EXPORT_COHORTS, "ALL")));
         exportCohort.forEach((c) -> {
-            if (sc.getCohortIds().containsKey(c)) {
+            if (!sc.getCohortIds().containsKey(c)) {
                 throw new IllegalStateException("Cohort does not exist: " + c);
             }
             Integer id = sc.getCohortIds().get(c);
