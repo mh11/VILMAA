@@ -1,0 +1,110 @@
+
+@namespace("diva.genome.storage.models.alleles.avro")
+
+protocol Alleles {
+    import idl "variant.avdl";
+    import idl "variantAnnotation.avdl";
+
+    record AlleleCount {
+        array<int> noCall;
+        array<int> het;
+        array<int> homVar;
+        /**
+         * Reference counts for samples, not covered by het or homVar
+          * <ul>
+          * <li>1 for one reference allele</li>
+          * <li>2 NOT included: hom_ref values are not stored</li>
+          * <li>other possible alleles</li>
+          * </ul>
+         */
+        @java-key-class("java.lang.Integer") map<array<int>> referenceAlleleCounts;
+        /**
+         * Allele counts for current alternate, not covered by het or homVar
+          * <ul>
+          * <li>1 for one alternate allele</li>
+          * <li>2 NOT included: hom_var values are stored separately</li>
+          * <li>other possible alleles</li>
+          * </ul>
+         */
+        @java-key-class("java.lang.Integer") map<array<int>> altAlleleCounts;
+        /**
+         * Allele  counts for other alternates (not current):
+          * map of alternate string e.g. A_T with allele count and ID list.
+          * <ul>
+          * <li>1 for one alternate allele</li>
+          * <li>2 NOT included: hom_var values are stored separately</li>
+          * <li>other possible alleles</li>
+          * </ul>
+         */
+        map< @java-key-class("java.lang.Integer")map<array<int>>> otherAltAlleleCounts;
+    }
+
+    record AllelesAvro {
+
+        /**
+         * Chromosome of the reported allele count.
+         */
+        string chromosome;
+
+        /**
+         * Start position of the allele count.
+         */
+        int start;
+
+        /**
+         * Start position of the allele count.
+         */
+        int end;
+
+        /**
+         * Reference allele.
+         */
+        string reference;
+
+        /**
+         * Alternate allele.
+         */
+        string alternate;
+
+        /**
+         * Length of the variation (e.g. 1 for SNV, length of alt for INS, length of ref for DEL)
+         */
+        int lengthVariant;
+
+        /**
+         * Length of the variation (e.g. 1 for SNV, 0 for INS, length of ref for DEL)
+         */
+        int lengthReference;
+
+        int numberOfSamples;
+        int pass;
+        array<int> notPass;
+        float callRate;
+        float passRate;
+        float overallPassRate;
+
+        /**
+         * Allele count of the current ref/alt and other overlapping alternates.
+         */
+        AlleleCount alleleCount;
+
+        /**
+         * Variant type (as specific as possible)
+         */
+        org.opencb.biodata.models.variant.avro.VariantType type;
+
+        /**
+         * Statistics of the sample allele counts.
+         */
+        map<org.opencb.biodata.models.variant.avro.VariantStats> stats;
+
+        /**
+         * Annotations of the genomic variation.
+         */
+        union { null, org.opencb.biodata.models.variant.avro.VariantAnnotation } annotation = null;
+
+    }
+
+}
+
+

@@ -8,6 +8,7 @@
     <packaging>pom</packaging>
     <version>0.0.1-SNAPSHOT</version>
     <properties>
+        <diva.version>0.0.1-SNAPSHOT</diva.version>
         <java.version>1.8</java.version>
 <!--        <opencga.version>1.0.0-rc4</opencga.version> -->
         <opencga.version>1.0.0-final</opencga.version>
@@ -40,6 +41,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>diva-genome</groupId>
+                <artifactId>diva-genome-storage-model</artifactId>
+                <version>${diva.version}</version>
+            </dependency>
             <!-- OpenCGA  -->
             <dependency>
                 <groupId>org.opencb.opencga</groupId>
@@ -325,7 +331,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>2.6</version>
+                    <version>3.0.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -347,6 +353,11 @@
                     <groupId>org.xolstice.maven.plugins</groupId>
                     <artifactId>protobuf-maven-plugin</artifactId>
                     <version>0.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.avro</groupId>
+                    <artifactId>avro-maven-plugin</artifactId>
+                    <version>1.7.7</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
