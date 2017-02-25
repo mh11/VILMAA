@@ -50,6 +50,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     }
 
     private void prepareCohorts() {
+        this.returnedSampleIds = new HashSet<>();
         StudyConfiguration sc = getStudyConfiguration();
         this.exportCohort = new HashSet<>(Arrays.asList(
                 getConf().getStrings(CONFIG_ANALYSIS_EXPORT_COHORTS, "ALL")));
@@ -79,7 +80,6 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     }
 
     private void prepareConverter() {
-        this.returnedSampleIds = new HashSet<>();
         StudyConfiguration sc = getStudyConfiguration();
         Set<Integer> availableSamples = StudyConfiguration.getIndexedSamples(sc).values();
 
