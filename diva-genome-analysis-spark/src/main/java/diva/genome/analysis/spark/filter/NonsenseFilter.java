@@ -8,9 +8,12 @@ import org.opencb.biodata.models.variant.avro.ProteinVariantAnnotation;
 import org.opencb.biodata.models.variant.avro.Score;
 import org.opencb.biodata.models.variant.avro.VariantAnnotation;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Created by mh719 on 25/02/2017.
@@ -36,6 +39,17 @@ public class NonsenseFilter implements Function<AllelesAvro, Boolean>, Predicate
             return false;// not a high cadd score
         }
         return annotation.getConsequenceTypes().stream().anyMatch(c -> valid(c));
+    }
+
+    public Collection<ConsequenceType> validConsequences(AllelesAvro allelesAvro) {
+        VariantAnnotation annotation = allelesAvro.getAnnotation();
+        if (null == annotation || null == annotation.getConsequenceTypes()) {
+            return Collections.emptyList();
+        }
+        if (!hasHighCadd(annotation.getFunctionalScore())){
+            return Collections.emptyList();// not a high cadd score
+        }
+        return annotation.getConsequenceTypes().stream().filter(c -> valid(c)).collect(Collectors.toList());
     }
 
     public boolean valid(ConsequenceType consequenceType) {

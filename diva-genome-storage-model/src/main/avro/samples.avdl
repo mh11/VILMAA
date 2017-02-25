@@ -2,12 +2,8 @@
 
 protocol Samples {
 
-    record SampleInformation {
-        string sampleName;
-        int sampleId;
-    }
-
     record SampleCollection {
-        array<SampleInformation> samples;
+        @java-key-class("java.lang.Integer")map<string> samples;
+        map<array<int>> cohorts;
     }
 }

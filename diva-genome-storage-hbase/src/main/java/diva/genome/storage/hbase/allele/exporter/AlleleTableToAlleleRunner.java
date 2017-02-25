@@ -5,7 +5,6 @@ import diva.genome.storage.hbase.allele.AbstractLocalRunner;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.samples.avro.SampleCollection;
-import diva.genome.storage.models.samples.avro.SampleInformation;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.commons.io.FileUtils;
@@ -16,10 +15,7 @@ import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALYSIS_EXPORT_COHORTS;
@@ -43,8 +39,9 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
 
     @Override
     protected void map(Scan scan, String variantTable) {
-        prepareConverter();
+        prepareCohorts();
         prepareSampleFile();
+        prepareConverter();
         try {
             prepareAvroWriter(() -> super.map(scan, variantTable));
         } catch (IOException e) {
@@ -52,14 +49,27 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         }
     }
 
+    private void prepareCohorts() {
+        StudyConfiguration sc = getStudyConfiguration();
+        this.exportCohort = new HashSet<>(Arrays.asList(
+                getConf().getStrings(CONFIG_ANALYSIS_EXPORT_COHORTS, "ALL")));
+        exportCohort.forEach((c) -> {
+            if (!sc.getCohortIds().containsKey(c)) {
+                throw new IllegalStateException("Cohort does not exist: " + c);
+            }
+            Integer id = sc.getCohortIds().get(c);
+            this.returnedSampleIds.addAll(sc.getCohorts().getOrDefault(id, Collections.emptySet()));
+        });
+    }
+
     private void prepareSampleFile() {
         File file = getSampleInfoOutputFile();
         StudyConfiguration sc = getStudyConfiguration();
         BiMap<Integer, String> idx = StudyConfiguration.getIndexedSamples(sc).inverse();
         SampleCollection collection = SampleCollection.newBuilder()
-                .setSamples(this.returnedSampleIds.stream()
-                        .map(id -> SampleInformation.newBuilder().setSampleId(id).setSampleName(idx.get(id)).build())
-                        .collect(Collectors.toList()))
+                .setSamples(this.returnedSampleIds.stream().collect(Collectors.toMap(s -> s, s-> idx.get(s))))
+                .setCohorts(this.exportCohort.stream().collect(
+                        Collectors.toMap(e -> e, e -> new ArrayList<>(sc.getCohorts().get(sc.getCohortIds().get(e))))))
                 .build();
         try {
             FileUtils.write(file, collection.toString(), false);
@@ -72,15 +82,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         this.returnedSampleIds = new HashSet<>();
         StudyConfiguration sc = getStudyConfiguration();
         Set<Integer> availableSamples = StudyConfiguration.getIndexedSamples(sc).values();
-        this.exportCohort = new HashSet<>(Arrays.asList(
-                getConf().getStrings(CONFIG_ANALYSIS_EXPORT_COHORTS, "ALL")));
-        exportCohort.forEach((c) -> {
-            if (!sc.getCohortIds().containsKey(c)) {
-                throw new IllegalStateException("Cohort does not exist: " + c);
-            }
-            Integer id = sc.getCohortIds().get(c);
-            this.returnedSampleIds.addAll(sc.getCohorts().getOrDefault(id, Collections.emptySet()));
-        });
+
         Set<Integer> invalid = this.returnedSampleIds.stream()
                 .filter(k -> !availableSamples.contains(k)).collect(Collectors.toSet());
         if (!invalid.isEmpty()) {
