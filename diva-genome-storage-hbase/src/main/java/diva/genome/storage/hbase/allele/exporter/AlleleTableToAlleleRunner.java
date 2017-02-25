@@ -64,6 +64,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     }
 
     private void prepareSampleFile() {
+        this.returnedSampleIds = new HashSet<>();
         File file = getSampleInfoOutputFile();
         StudyConfiguration sc = getStudyConfiguration();
         BiMap<Integer, String> idx = StudyConfiguration.getIndexedSamples(sc).inverse();
