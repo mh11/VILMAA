@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import static diva.genome.analysis.spark.SparkDiva.buildSparkConf;
 import static diva.genome.analysis.spark.SparkDiva.loadAlles;
+import static diva.genome.analysis.spark.SparkDiva.loadParquet;
 
 /**
  * Created by mh719 on 25/02/2017.
@@ -68,7 +69,7 @@ public class NonsenseAnalysis {
         SparkConf conf = buildSparkConf(home, NonsenseAnalysis.class.getName(), master);
         JavaSparkContext sc = new JavaSparkContext(conf);
 
-        JavaRDD<AllelesAvro> rdd = loadAlles(sc, avroPath);
+        JavaRDD<AllelesAvro> rdd = loadParquet(sc, avroPath);
         PairFlatMapFunction<AllelesAvro, String, Set<Integer>> pfmf = alleles -> {
             Set<String> geneIds = new NonsenseFilter().validConsequences(alleles)
                     .stream().map(c -> c.getEnsemblGeneId()).collect(Collectors.toSet());

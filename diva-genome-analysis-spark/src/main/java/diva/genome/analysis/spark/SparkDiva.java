@@ -5,6 +5,7 @@ import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.parquet.hadoop.ParquetInputFormat;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -14,6 +15,12 @@ import org.apache.spark.api.java.JavaSparkContext;
  * Created by mh719 on 25/02/2017.
  */
 public class SparkDiva {
+
+    public static JavaRDD<AllelesAvro> loadParquet(JavaSparkContext sc, String avroPath) {
+        JavaPairRDD<Void, AllelesAvro> pairRDD = sc.newAPIHadoopFile(avroPath, ParquetInputFormat
+                .class, Void.class, AllelesAvro.class, sc.hadoopConfiguration());
+        return pairRDD.values();
+    }
 
     public static JavaRDD<AllelesAvro> loadAlles(JavaSparkContext sc, String avroPath) {
         return loadAvroFile(sc, avroPath);
