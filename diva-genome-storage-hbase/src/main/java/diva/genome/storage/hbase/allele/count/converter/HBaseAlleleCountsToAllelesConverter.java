@@ -5,7 +5,10 @@ import diva.genome.storage.hbase.allele.count.AbstractHBaseAlleleCountsConverter
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.models.alleles.avro.AlleleCount;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import org.apache.commons.lang.StringUtils;
 import org.opencb.biodata.models.variant.Variant;
+import org.opencb.biodata.models.variant.avro.ConsequenceType;
+import org.opencb.biodata.models.variant.avro.Score;
 import org.opencb.biodata.models.variant.avro.VariantAnnotation;
 import org.opencb.biodata.models.variant.avro.VariantType;
 import org.opencb.biodata.models.variant.stats.VariantStats;
@@ -15,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CALL;
 
@@ -35,6 +39,14 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         HashMap<String, org.opencb.biodata.models.variant.avro.VariantStats> map = new HashMap(statsMap.size());
         statsMap.forEach((key, val) -> map.put(key, val.getImpl()));
         filled.setStats(map);
+        double wgs10kmaf = -1;
+        if (statsMap.containsKey("WGS10K")) {
+            VariantStats stats = statsMap.get("WGS10K");
+            if (null != stats) {
+                wgs10kmaf = stats.getMaf();
+            }
+        }
+        filled.setMafWgs10k((float) wgs10kmaf);
     }
 
     @Override
@@ -43,6 +55,32 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
             variantAnnotation = new VariantAnnotation();
         }
         filled.setAnnotation(variantAnnotation);
+        Set<String> csq = new HashSet<>();
+        Set<String> ensGeneIds = new HashSet<>();
+        Set<String> bioTypes = new HashSet<>();
+        if (null != variantAnnotation.getConsequenceTypes()) {
+            variantAnnotation.getConsequenceTypes().forEach(c -> {
+                if (StringUtils.isNotEmpty(c.getBiotype())) {
+                    bioTypes.add(c.getBiotype());
+                }
+                c.getSequenceOntologyTerms().forEach(s -> csq.add(s.getName()));
+                if (StringUtils.isNotEmpty(c.getEnsemblGeneId())) {
+                    ensGeneIds.add(c.getEnsemblGeneId());
+                }
+            });
+        }
+        filled.setConsequenceTypes(new ArrayList<>(csq));
+        filled.setBioTypes(new ArrayList<>(bioTypes));
+        filled.setEnsemblGeneIds(new ArrayList<>(ensGeneIds));
+
+        if (null != variantAnnotation.getFunctionalScore()) {
+            OptionalDouble max = variantAnnotation.getFunctionalScore().stream()
+                    .filter(s -> s.getSource().equals("cadd_scaled"))
+                    .mapToDouble(Score::getScore).max();
+            if (max.isPresent()) {
+                filled.setCaddScaledMax((float) max.getAsDouble());
+            }
+        }
     }
 
     protected void ensureSamples() {
