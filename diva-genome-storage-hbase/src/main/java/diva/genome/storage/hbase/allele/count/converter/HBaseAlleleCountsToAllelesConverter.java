@@ -105,12 +105,12 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         diva.genome.storage.models.alleles.avro.VariantAnnotation.Builder builder = diva.genome.storage.models
                 .alleles.avro.VariantAnnotation.newBuilder();
 
-        isNotNull(variantAnnotation.getId(), h -> builder.setId(h));
-        isNotNull(variantAnnotation.getXrefs(), h -> builder.setXrefs(h));
-        isNotNull(variantAnnotation.getHgvs(), h -> builder.setHgvs(h));
-        isNotNull(variantAnnotation.getDisplayConsequenceType(), h -> builder.setDisplayConsequenceType(h));
+        isNotNull(variantAnnotation.getId(), StringUtils.EMPTY, h -> builder.setId(h));
+        isNotNull(variantAnnotation.getDisplayConsequenceType(), StringUtils.EMPTY, h -> builder.setDisplayConsequenceType(h));
 
         /* List types */
+        isNotNullList(variantAnnotation.getXrefs(), h -> builder.setXrefs(h));
+        isNotNullList(variantAnnotation.getHgvs(), h -> builder.setHgvs(h));
         isNotNullList(variantAnnotation.getConsequenceTypes(), l -> builder.setConsequenceTypes(l));
         isNotNullList(variantAnnotation.getPopulationFrequencies(), l -> builder.setPopulationFrequencies(l));
         isNotNullList(variantAnnotation.getConservation(), l -> builder.setConservation(l));
@@ -129,6 +129,14 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
 
     private <T> void isNotNull(T t, Consumer<T> c) {
         if (!Objects.isNull(t)) {
+            c.accept(t);
+        }
+    }
+
+    private <T> void isNotNull(T t, T def, Consumer<T> c) {
+        if (Objects.isNull(t)) {
+            c.accept(def);
+        } else {
             c.accept(t);
         }
     }
