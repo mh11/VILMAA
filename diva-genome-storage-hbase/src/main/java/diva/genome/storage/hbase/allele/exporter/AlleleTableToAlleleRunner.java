@@ -11,6 +11,8 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
@@ -18,10 +20,7 @@ import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -73,7 +72,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     }
 
     private void prepareSampleFile() {
-        File file = getSampleInfoOutputFile();
+        Path file = getSampleInfoOutputFile();
         StudyConfiguration sc = getStudyConfiguration();
         BiMap<Integer, String> idx = StudyConfiguration.getIndexedSamples(sc).inverse();
         SampleCollection collection = SampleCollection.newBuilder()
@@ -81,7 +80,8 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
                 .setCohorts(this.exportCohort.stream().collect(
                         Collectors.toMap(e -> e, e -> new ArrayList<>(sc.getCohorts().get(sc.getCohortIds().get(e))))))
                 .build();
-        try ( OutputStream out = new FileOutputStream(file, false)){
+        try ( FileSystem fs = FileSystem.get(getConf());
+              FSDataOutputStream out = fs.create(file, false)){
             DatumWriter<SampleCollection> writer = new GenericDatumWriter<>(SampleCollection.getClassSchema());
             JsonEncoder encoder = EncoderFactory.get().jsonEncoder(SampleCollection.getClassSchema(), out);
             writer.write(collection, encoder);
@@ -110,8 +110,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
 
     protected void prepareParquetWriter(Runnable runnable) throws IOException {
         // http://blog.cloudera.com/blog/2014/05/how-to-convert-existing-data-into-parquet/
-        File outputFile = getOutputFile();
-        Path path = new Path(outputFile.getPath());
+        Path path = getOutputFile();
         Schema classSchema = AllelesAvro.getClassSchema();
         CompressionCodecName codec = CompressionCodecName.SNAPPY;
         parquetWriter = new AvroParquetWriter<>(path, classSchema,
@@ -135,28 +134,28 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
 //        }
 //    }
 
-    private File getOutputFile() {
+    private Path getOutputFile() {
         return checkFile(getConf().get(OUTPUT_FILE, StringUtils.EMPTY));
     }
 
-    private File getSampleInfoOutputFile() {
+    private Path getSampleInfoOutputFile() {
         String path = getConf().get(OUTPUT_FILE, StringUtils.EMPTY);
         checkFile(path);
         return checkFile(path + ".samples.json");
     }
 
-    private File checkFile(String path) {
-        if (StringUtils.isBlank(path)) {
+    private Path checkFile(String outFile) {
+        if (StringUtils.isBlank(outFile)) {
             throw new IllegalStateException("File output paramter required: " + OUTPUT_FILE);
         }
-        File outFile = new File(path);
-        if (outFile.exists()) {
-            throw new IllegalStateException("File output already exists !!!");
-        }
-        if (!outFile.getParentFile().exists()) {
-            throw new IllegalStateException("File output directory does not exist !!!" + outFile.getParentFile());
-        }
-        return outFile;
+        Path path = new Path(outFile);
+//        if (path.exists()) {
+//            throw new IllegalStateException("File output already exists !!!");
+//        }
+//        if (!outFile.getParentFile().exists()) {
+//            throw new IllegalStateException("File output directory does not exist !!!" + outFile.getParentFile());
+//        }
+        return path;
     }
 
     public static void main(String[] args) throws Exception {
