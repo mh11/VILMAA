@@ -1,7 +1,7 @@
 package diva.genome.analysis.spark.filter;
 
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
-import org.opencb.biodata.models.variant.avro.VariantStats;
+import diva.genome.storage.models.alleles.avro.VariantStats;
 
 import java.util.Map;
 import java.util.function.Function;

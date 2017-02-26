@@ -2,9 +2,9 @@ package diva.genome.analysis.spark.filter;
 
 import diva.genome.analysis.VariantConsequence;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.VariantAnnotation;
 import org.apache.commons.lang.StringUtils;
 import org.opencb.biodata.models.variant.avro.ConsequenceType;
-import org.opencb.biodata.models.variant.avro.VariantAnnotation;
 
 import java.util.Collection;
 import java.util.Collections;
