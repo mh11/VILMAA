@@ -19,6 +19,10 @@
             <artifactId>diva-genome-storage-model</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-avro</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.opencb.opencga</groupId>
             <artifactId>opencga-core</artifactId>
         </dependency>

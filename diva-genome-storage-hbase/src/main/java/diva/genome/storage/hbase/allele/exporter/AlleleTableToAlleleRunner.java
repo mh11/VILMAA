@@ -5,16 +5,17 @@ import diva.genome.storage.hbase.allele.AbstractLocalRunner;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.samples.avro.SampleCollection;
-import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
-import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.parquet.avro.AvroParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 
 import java.io.File;
@@ -31,16 +32,18 @@ import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALY
  */
 public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     public static final String OUTPUT_FILE = "diva.allele.output.file";
-    private DataFileWriter<AllelesAvro> dataFileWriter;
+//    private DataFileWriter<AllelesAvro> dataFileWriter;
     private HBaseAlleleCountsToAllelesConverter hBaseAlleleCountsToAllelesConverter;
     private Set<String> exportCohort;
     private Set<Integer> returnedSampleIds;
+    private AvroParquetWriter<AllelesAvro> parquetWriter;
 
     @Override
     protected void map(Result result) throws IOException {
         AllelesAvro.Builder builder = this.hBaseAlleleCountsToAllelesConverter.convert(result);
         AllelesAvro avro = builder.build();
-        this.dataFileWriter.append(avro);
+//        this.dataFileWriter.append(avro);
+        this.parquetWriter.write(avro);
     }
 
     @Override
@@ -49,7 +52,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         prepareSampleFile();
         prepareConverter();
         try {
-            prepareAvroWriter(() -> super.map(scan, variantTable));
+            prepareParquetWriter(() -> super.map(scan, variantTable));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -105,17 +108,32 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         hBaseAlleleCountsToAllelesConverter.setCohortWhiteList(this.exportCohort);
     }
 
-    protected void prepareAvroWriter(Runnable runnable) throws IOException {
+    protected void prepareParquetWriter(Runnable runnable) throws IOException {
+        // http://blog.cloudera.com/blog/2014/05/how-to-convert-existing-data-into-parquet/
         File outputFile = getOutputFile();
-        this.dataFileWriter = new DataFileWriter<>(
-                new SpecificDatumWriter<>(AllelesAvro.class));
+        Path path = new Path(outputFile.getPath());
+        Schema classSchema = AllelesAvro.getClassSchema();
+        CompressionCodecName codec = CompressionCodecName.SNAPPY;
+        parquetWriter = new AvroParquetWriter<>(path, classSchema,
+                codec, 1024, 1024, true, getConf());
         try {
-            dataFileWriter.create(AllelesAvro.SCHEMA$, outputFile);
             runnable.run();
         } finally {
-            dataFileWriter.close();
+            parquetWriter.close();
         }
     }
+
+//    protected void prepareAvroWriter(Runnable runnable) throws IOException {
+//        File outputFile = getOutputFile();
+//        this.dataFileWriter = new DataFileWriter<>(
+//                new SpecificDatumWriter<>(AllelesAvro.class));
+//        try {
+//            dataFileWriter.create(AllelesAvro.SCHEMA$, outputFile);
+//            runnable.run();
+//        } finally {
+//            dataFileWriter.close();
+//        }
+//    }
 
     private File getOutputFile() {
         return checkFile(getConf().get(OUTPUT_FILE, StringUtils.EMPTY));
