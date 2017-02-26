@@ -18,9 +18,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CALL;
+import static java.util.stream.Collectors.*;
 
 /**
  * Created by mh719 on 24/02/2017.
@@ -36,8 +38,8 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
 
     @Override
     protected void addStatistics(AllelesAvro.Builder filled, String studyName, Map<String, VariantStats> statsMap) {
-        HashMap<String, org.opencb.biodata.models.variant.avro.VariantStats> map = new HashMap(statsMap.size());
-        statsMap.forEach((key, val) -> map.put(key, val.getImpl()));
+        HashMap<String, diva.genome.storage.models.alleles.avro.VariantStats> map = new HashMap(statsMap.size());
+        statsMap.forEach((key, val) -> map.put(key, buildStats(val)));
         filled.setStats(map);
         double wgs10kmaf = -1;
         if (statsMap.containsKey("WGS10K")) {
@@ -49,17 +51,32 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         filled.setMafWgs10k((float) wgs10kmaf);
     }
 
+    private diva.genome.storage.models.alleles.avro.VariantStats buildStats(VariantStats val) {
+        org.opencb.biodata.models.variant.avro.VariantStats impl = val.getImpl();
+        diva.genome.storage.models.alleles.avro.VariantStats.Builder builder = diva.genome.storage.models.alleles
+                .avro.VariantStats.newBuilder();
+        builder.setRefAlleleCount(impl.getRefAlleleCount());
+        builder.setAltAlleleCount(impl.getAltAlleleCount());
+        builder.setGenotypesCount(impl.getGenotypesCount().entrySet().stream()
+                .collect(toMap(e -> e.getKey().toGenotypeString(), e -> e.getValue())));
+        builder.setMaf(impl.getMaf());
+        builder.setMgf(impl.getMgf());
+        builder.setMafAllele(impl.getMafAllele());
+        builder.setNumSamples(impl.getNumSamples());
+        return builder.build();
+    }
+
     @Override
     protected void addAnnotation(AllelesAvro.Builder filled, VariantAnnotation variantAnnotation) {
         if (null == variantAnnotation) {
             variantAnnotation = new VariantAnnotation();
         }
-        filled.setAnnotation(variantAnnotation);
+        filled.setAnnotation(buildAnnotation(variantAnnotation));
         Set<String> csq = new HashSet<>();
         Set<String> ensGeneIds = new HashSet<>();
         Set<String> bioTypes = new HashSet<>();
-        if (null != variantAnnotation.getConsequenceTypes()) {
-            variantAnnotation.getConsequenceTypes().forEach(c -> {
+        isNotNull(variantAnnotation.getConsequenceTypes(), l -> {
+            l.forEach(c -> {
                 if (StringUtils.isNotEmpty(c.getBiotype())) {
                     bioTypes.add(c.getBiotype());
                 }
@@ -68,7 +85,7 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
                     ensGeneIds.add(c.getEnsemblGeneId());
                 }
             });
-        }
+        });
         filled.setConsequenceTypes(new ArrayList<>(csq));
         filled.setBioTypes(new ArrayList<>(bioTypes));
         filled.setEnsemblGeneIds(new ArrayList<>(ensGeneIds));
@@ -80,6 +97,39 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
             if (max.isPresent()) {
                 filled.setCaddScaledMax((float) max.getAsDouble());
             }
+        }
+    }
+
+    private diva.genome.storage.models.alleles.avro.VariantAnnotation buildAnnotation(VariantAnnotation variantAnnotation) {
+
+        diva.genome.storage.models.alleles.avro.VariantAnnotation.Builder builder = diva.genome.storage.models
+                .alleles.avro.VariantAnnotation.newBuilder();
+
+        isNotNull(variantAnnotation.getId(), h -> builder.setId(h));
+        isNotNull(variantAnnotation.getXrefs(), h -> builder.setXrefs(h));
+        isNotNull(variantAnnotation.getHgvs(), h -> builder.setHgvs(h));
+        isNotNull(variantAnnotation.getDisplayConsequenceType(), h -> builder.setDisplayConsequenceType(h));
+
+        /* List types */
+        isNotNullList(variantAnnotation.getConsequenceTypes(), l -> builder.setConsequenceTypes(l));
+        isNotNullList(variantAnnotation.getPopulationFrequencies(), l -> builder.setPopulationFrequencies(l));
+        isNotNullList(variantAnnotation.getConservation(), l -> builder.setConservation(l));
+        isNotNullList(variantAnnotation.getFunctionalScore(), l -> builder.setFunctionalScore(l));
+
+        return builder.build();
+    }
+
+    private <T> void isNotNullList(List<T> t, Consumer<List<T>> c) {
+        List<T> lst = new ArrayList<>();
+        if (!Objects.isNull(t)) {
+            isNotNull(t, h -> lst.addAll(h));
+        }
+        c.accept(lst);
+    }
+
+    private <T> void isNotNull(T t, Consumer<T> c) {
+        if (!Objects.isNull(t)) {
+            c.accept(t);
         }
     }
 
@@ -146,37 +196,40 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
                 oneAlt.add(k);
             }
         });
-        Map<Integer, List<Integer>> alts = new HashMap<>();
+        Map<String, List<Integer>> alts = new HashMap<>();
         if (!oneAlt.isEmpty()) {
-            alts.put(1, oneAlt);
+            alts.put("1", oneAlt);
         }
         bean.getAlternate().forEach((k, v) -> {
             if (k == 2) {
                 homVar.addAll(v);
             } else if (k < 1 || k > 2) {
-                alts.put(k, v);
+                alts.put(k.toString(), v);
             }
         });
-        Map<Integer, List<Integer>> refs = new HashMap<>();
+        Map<String, List<Integer>> refs = new HashMap<>();
         if (!oneRef.isEmpty()) {
-            refs.put(1, new ArrayList<>(oneRef));
+            refs.put("1", new ArrayList<>(oneRef));
         }
         List<Integer> nocall = new ArrayList<>();
         bean.getReference().forEach((k, v) -> {
             if (k == NO_CALL) {
                 nocall.addAll(v);
             } else if (k < 1 || k > 2) {
-                refs.put(k, v);
+                refs.put(k.toString(), v);
             }
         });
-
 
         builder.setReferenceAlleleCounts(refs)
                 .setNoCall(nocall)
                 .setHet(hets)
                 .setHomVar(homVar)
                 .setAltAlleleCounts(alts)
-                .setOtherAltAlleleCounts(bean.getAltMap());
+                .setOtherAltAlleleCounts( // Map from <String<Integer<List<Integer>>> to <String<String<List<Integer>>>
+                        bean.getAltMap().entrySet().stream().collect(
+                                toMap(e -> e.getKey(),
+                                        e -> e.getValue().entrySet().stream().collect(
+                                                toMap(f -> f.getKey().toString(), f -> f.getValue())))));
         return builder.build();
     }
 

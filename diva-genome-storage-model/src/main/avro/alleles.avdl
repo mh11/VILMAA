@@ -17,7 +17,8 @@ protocol Alleles {
           * <li>other possible alleles</li>
           * </ul>
          */
-        @java-key-class("java.lang.Integer") map<array<int>> referenceAlleleCounts;
+        // @java-key-class("java.lang.Integer") // issue with parquet
+        map<array<int>> referenceAlleleCounts;
         /**
          * Allele counts for current alternate, not covered by het or homVar
           * <ul>
@@ -26,7 +27,8 @@ protocol Alleles {
           * <li>other possible alleles</li>
           * </ul>
          */
-        @java-key-class("java.lang.Integer") map<array<int>> altAlleleCounts;
+        // @java-key-class("java.lang.Integer") // issue with parquet
+        map<array<int>> altAlleleCounts;
         /**
          * Allele  counts for other alternates (not current):
           * map of alternate string e.g. A_T with allele count and ID list.
@@ -36,7 +38,30 @@ protocol Alleles {
           * <li>other possible alleles</li>
           * </ul>
          */
-        map< @java-key-class("java.lang.Integer")map<array<int>>> otherAltAlleleCounts;
+        // @java-key-class("java.lang.Integer") // issue with parquet
+        map<map<array<int>>> otherAltAlleleCounts;
+    }
+
+    record VariantStats {
+        int refAlleleCount;
+        int altAlleleCount;
+        map<int> genotypesCount;
+        float maf;
+        float mgf;
+        string mafAllele;
+        int numSamples;
+    }
+
+
+    record VariantAnnotation {
+        union { null, string } id;
+        union { null, array<org.opencb.biodata.models.variant.avro.Xref> } xrefs;
+        union { null, array<string> } hgvs;
+        union { null, string } displayConsequenceType;
+        array<org.opencb.biodata.models.variant.avro.ConsequenceType> consequenceTypes = [];
+        array<org.opencb.biodata.models.variant.avro.PopulationFrequency> populationFrequencies = [];
+        array<org.opencb.biodata.models.variant.avro.Score> conservation = [];
+        array<org.opencb.biodata.models.variant.avro.Score> functionalScore = [];
     }
 
     record AllelesAvro {
@@ -87,7 +112,7 @@ protocol Alleles {
         array<string> bioTypes;
         union { null, float } caddScaledMax = null;
         array<string> ensemblGeneIds;
-        float mafWgs10k = null;
+        float mafWgs10k;
 
         /**
          * Allele count of the current ref/alt and other overlapping alternates.
@@ -102,12 +127,12 @@ protocol Alleles {
         /**
          * Statistics of the sample allele counts.
          */
-        map<org.opencb.biodata.models.variant.avro.VariantStats> stats;
+        map<VariantStats> stats;
 
         /**
          * Annotations of the genomic variation.
          */
-        union { null, org.opencb.biodata.models.variant.avro.VariantAnnotation } annotation = null;
+        VariantAnnotation annotation;
 
     }
 
