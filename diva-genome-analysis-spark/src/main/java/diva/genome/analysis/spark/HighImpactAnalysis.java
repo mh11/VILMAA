@@ -6,8 +6,8 @@ import diva.genome.storage.models.alleles.avro.AlleleCount;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.samples.avro.SampleCollection;
 import org.apache.avro.Schema;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -24,8 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
-import java.io.DataInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -45,7 +44,7 @@ public class HighImpactAnalysis {
         return LOG;
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, ClassNotFoundException {
         String avroPath = StringUtils.EMPTY; // "file:///Users/mh719/data/to-avro_small.avro";
         String config = StringUtils.EMPTY;
         String master = StringUtils.EMPTY;
@@ -64,6 +63,8 @@ public class HighImpactAnalysis {
         getLog().info("avroPath = {}", avroPath);
         getLog().info("config = {}", config);
         SampleCollection sConfig = loadSampleCollection(config);
+        SampleCollectionSerializable seriConfig = new SampleCollectionSerializable(sConfig);
+
         SparkConf conf = buildSparkConf(home, HighImpactAnalysis.class.getName(), master);
         JavaSparkContext sc = new JavaSparkContext(conf);
 
@@ -85,11 +86,68 @@ public class HighImpactAnalysis {
             hs.addAll(b);
             return hs;
         });
-        groupedData.foreach(d -> printResult(d, sConfig));
+        groupedData.foreach(d -> printResult(d, seriConfig));
         getLog().info("Done");
     }
 
-    private static void printResult(Tuple2<String, Set<Integer>> d, SampleCollection samples) {
+
+    public static class SampleCollectionSerializable implements Serializable, Externalizable {
+
+        private volatile SampleCollection collection;
+
+        public SampleCollectionSerializable() {
+
+        }
+        public SampleCollectionSerializable(SampleCollection collection) {
+            this.collection = collection;
+        }
+
+        private static SampleCollection fromString(String s) {
+            try {
+                Schema schema = SampleCollection.getClassSchema();
+                Decoder decoder = DecoderFactory.get().jsonDecoder(schema, s);
+                SpecificDatumReader<SampleCollection> reader = new SpecificDatumReader<>
+                        (SampleCollection.getClassSchema());
+                return reader.read(null, decoder);
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        private static String toString(SampleCollection collection) {
+            try (ByteArrayOutputStream out = new ByteArrayOutputStream()){
+                DatumWriter<SampleCollection> writer = new GenericDatumWriter<>(SampleCollection.getClassSchema());
+                JsonEncoder encoder = EncoderFactory.get().jsonEncoder(SampleCollection.getClassSchema(), out);
+                writer.write(collection, encoder);
+                encoder.flush();
+                return out.toString();
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        @Override
+        public void writeExternal(ObjectOutput out) throws IOException {
+            out.writeObject(toString(this.collection));
+        }
+
+        private void writeObject(ObjectOutputStream out) throws IOException {
+            out.writeObject(toString(this.collection));
+        }
+
+        @Override
+        public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+            collection = fromString(in.readObject().toString());
+        }
+
+        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            collection = fromString(in.readObject().toString());
+        }
+    }
+
+
+    private static void printResult(Tuple2<String, Set<Integer>> d, SampleCollectionSerializable seriSample) {
+        SampleCollection samples = seriSample.collection;
         Set<Integer> ids = d._2();
         String gene = d._1();
         getLog().info("Gene: {} with {} samples", gene, ids.size());
