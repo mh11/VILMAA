@@ -37,8 +37,8 @@ import static diva.genome.analysis.spark.SparkDiva.loadAlles;
 /**
  * Created by mh719 on 25/02/2017.
  */
-public class HighImpactAnalysis {
-    protected static final Logger LOG = LoggerFactory.getLogger(HighImpactAnalysis.class);
+public class NonsenseAnalysis {
+    protected static final Logger LOG = LoggerFactory.getLogger(NonsenseAnalysis.class);
 
     public static Logger getLog() {
         return LOG;
@@ -65,7 +65,7 @@ public class HighImpactAnalysis {
         SampleCollection sConfig = loadSampleCollection(config);
         SampleCollectionSerializable seriConfig = new SampleCollectionSerializable(sConfig);
 
-        SparkConf conf = buildSparkConf(home, HighImpactAnalysis.class.getName(), master);
+        SparkConf conf = buildSparkConf(home, NonsenseAnalysis.class.getName(), master);
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         JavaRDD<AllelesAvro> rdd = loadAlles(sc, avroPath);
@@ -90,6 +90,15 @@ public class HighImpactAnalysis {
         getLog().info("Done");
     }
 
+    static class DoFilter implements Function<AllelesAvro, Boolean> {
+        private static NonsenseFilter nonsense = new NonsenseFilter();
+        private static RareControlFilter rare = new RareControlFilter();
+
+        @Override
+        public Boolean call(AllelesAvro allelesAvro) throws Exception {
+            return rare.call(allelesAvro) && nonsense.call(allelesAvro);
+        }
+    }
 
     public static class SampleCollectionSerializable implements Serializable, Externalizable {
 
@@ -180,14 +189,5 @@ public class HighImpactAnalysis {
         }
     }
 
-    static class DoFilter implements Function<AllelesAvro, Boolean> {
-        private static NonsenseFilter nonsense = new NonsenseFilter();
-        private static RareControlFilter rare = new RareControlFilter();
-
-        @Override
-        public Boolean call(AllelesAvro allelesAvro) throws Exception {
-            return rare.call(allelesAvro) && nonsense.call(allelesAvro);
-        }
-    }
 
 }
