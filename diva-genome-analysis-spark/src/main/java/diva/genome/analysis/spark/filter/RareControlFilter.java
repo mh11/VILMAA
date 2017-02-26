@@ -13,23 +13,6 @@ import java.util.function.Predicate;
 public class RareControlFilter implements Function<AllelesAvro, Boolean>, Predicate<AllelesAvro>,
         org.apache.spark.api.java.function.Function<AllelesAvro, Boolean> {
     public static final String CONTROL = "PAH_CONTROL";
-    public static final String CASES = "PAH";
-
-//    private final String cases;
-//    private final String controls;
-
-//    public RareControlFilter(String cases, String controls) {
-//        this.cases = cases;
-//        this.controls = controls;
-//    }
-
-    private boolean isInPah(Map<String, VariantStats> stats) {
-        VariantStats pah = stats.get(CASES);
-        if (null == pah) {
-            return false; // no annotation -> no variation in this cohort seen.
-        }
-        return pah.getMaf() > 0;
-    }
 
     private boolean isRareControl(Map<String, VariantStats> stats) {
         VariantStats ctrl = stats.get(CONTROL);
@@ -45,7 +28,7 @@ public class RareControlFilter implements Function<AllelesAvro, Boolean>, Predic
         if (null == stats || stats.isEmpty()) {
             return false;
         }
-        return isRareControl(stats) && isInPah(stats);
+        return isRareControl(stats);
     }
 
     @Override
