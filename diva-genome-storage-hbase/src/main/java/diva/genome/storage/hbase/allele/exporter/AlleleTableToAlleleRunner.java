@@ -6,6 +6,10 @@ import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllel
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.samples.avro.SampleCollection;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.io.JsonEncoder;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -14,7 +18,9 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -72,8 +78,11 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
                 .setCohorts(this.exportCohort.stream().collect(
                         Collectors.toMap(e -> e, e -> new ArrayList<>(sc.getCohorts().get(sc.getCohortIds().get(e))))))
                 .build();
-        try {
-            FileUtils.write(file, collection.toString(), false);
+        try ( OutputStream out = new FileOutputStream(file, false)){
+            DatumWriter<SampleCollection> writer = new GenericDatumWriter<>(SampleCollection.getClassSchema());
+            JsonEncoder encoder = EncoderFactory.get().jsonEncoder(SampleCollection.getClassSchema(), out);
+            writer.write(collection, encoder);
+            encoder.flush();
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
