@@ -62,21 +62,11 @@ public class NonsenseDriver extends AbstractAlleleDriver {
 
         job.setCombinerClass(getCombinerClass());
 
+        getLog().info("Write to {} ouptut file ...", this.outAvroFile);
         FileOutputFormat.setOutputPath(job, this.outAvroFile); // set Path
         FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class); // compression
         job.setOutputFormatClass(AvroKeyOutputFormat.class);
         AvroJob.setOutputKeySchema(job, GeneSummary.getClassSchema()); // Set schema
-//        job.setNumReduceTasks(0);
-
-        getLog().info("Write to {} ouptut file ...", analysisTable);
-
-//        TableMapReduceUtil.initTableReducerJob(
-//                analysisTable,      // output table
-//                null,             // reducer class
-//                job,
-//                null, null, null, null,
-//                addDependencyJar);
-//        job.setNumReduceTasks(0);
     }
 
 
