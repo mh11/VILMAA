@@ -1,14 +1,16 @@
 package diva.genome.analysis.mr;
 
-import diva.genome.analysis.models.avro.GeneKey;
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.models.alleles.avro.AlleleCount;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.alleles.avro.VariantStats;
+import org.apache.avro.mapred.AvroKey;
+import org.apache.avro.mapred.AvroValue;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
 import org.opencb.biodata.models.variant.avro.ConsequenceType;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
@@ -23,7 +25,7 @@ import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALY
 /**
  * Created by mh719 on 27/02/2017.
  */
-public class GeneSummaryMapper extends AbstractHBaseMapReduce<GeneKey, GeneSummary> {
+public class GeneSummaryMapper extends AbstractHBaseMapReduce<AvroKey<Text>, AvroValue<GeneSummary>> {
     public static final String BIOTYPE_PROTEIN_CODING = "protein_coding";
 
     private volatile HBaseAlleleCountsToAllelesConverter hBaseAlleleCountsToAllelesConverter;
@@ -114,7 +116,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<GeneKey, GeneSumma
                     GeneSummary.Builder builder = GeneSummary.newBuilder();
                     builder.setCases(new ArrayList<>(affectedCases));
                     builder.setControls(new ArrayList<>(affectedCtls));
-                    context.write(GeneKey.newBuilder().setEnsemblGeneId(ensGene).build(), builder.build());
+                    context.write(new AvroKey<>(new Text(ensGene)), new AvroValue<>(builder.build()));
                 };
             } catch (Exception e) {
                 throw new IllegalStateException("Issue with variant " +
