@@ -14,26 +14,24 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static diva.genome.analysis.spark.SparkDiva.buildSparkConf;
-import static diva.genome.analysis.spark.SparkDiva.loadAlles;
-import static diva.genome.analysis.spark.SparkDiva.loadParquet;
 
 /**
  * Created by mh719 on 25/02/2017.
@@ -69,25 +67,38 @@ public class NonsenseAnalysis {
         SparkConf conf = buildSparkConf(home, NonsenseAnalysis.class.getName(), master);
         JavaSparkContext sc = new JavaSparkContext(conf);
 
-        JavaRDD<AllelesAvro> rdd = loadParquet(sc, avroPath);
-        PairFlatMapFunction<AllelesAvro, String, Set<Integer>> pfmf = alleles -> {
-            Set<String> geneIds = new NonsenseFilter().validConsequences(alleles)
-                    .stream().map(c -> c.getEnsemblGeneId()).collect(Collectors.toSet());
-            Set<Integer> samples = withVariation(alleles);
-            List<Tuple2<String, Set<Integer>>> ret = new ArrayList<>();
-            geneIds.forEach(gid -> ret.add(new Tuple2<>(gid, samples)));
-            return ret.iterator();
-        };
+        Configuration hbaseConf = HBaseConfiguration.create();
+        conf.set(TableInputFormat.INPUT_TABLE, avroPath);
+        // http://stackoverflow.com/questions/25040709/how-to-read-from-hbase-using-spark
+        // https://hortonworks.com/blog/spark-hbase-dataframe-based-hbase-connector/
+        JavaPairRDD<ImmutableBytesWritable, Result> hbaseRdd = sc.newAPIHadoopRDD(hbaseConf, TableInputFormat.class,
+                ImmutableBytesWritable.class, Result.class);
 
-        JavaRDD<AllelesAvro> remaining = rdd.filter(new DoFilter());
-        JavaPairRDD<String, Set<Integer>> paired = remaining.flatMapToPair(pfmf);
-        JavaPairRDD<String, Set<Integer>> groupedData = paired.reduceByKey((a, b) -> {
-            Set<Integer> hs = new HashSet<>(a.size() + b.size());
-            hs.addAll(a);
-            hs.addAll(b);
-            return hs;
-        });
-        groupedData.foreach(d -> printResult(d, seriConfig));
+        getLog().info("Build RDD ...");
+        long count = hbaseRdd.count();
+        getLog().info("Count finished with {} entries", count);
+
+
+
+//        JavaRDD<AllelesAvro> rdd = loadParquet(sc, avroPath);
+//        PairFlatMapFunction<AllelesAvro, String, Set<Integer>> pfmf = alleles -> {
+//            Set<String> geneIds = new NonsenseFilter().validConsequences(alleles)
+//                    .stream().map(c -> c.getEnsemblGeneId()).collect(Collectors.toSet());
+//            Set<Integer> samples = withVariation(alleles);
+//            List<Tuple2<String, Set<Integer>>> ret = new ArrayList<>();
+//            geneIds.forEach(gid -> ret.add(new Tuple2<>(gid, samples)));
+//            return ret.iterator();
+//        };
+//
+//        JavaRDD<AllelesAvro> remaining = rdd.filter(new DoFilter());
+//        JavaPairRDD<String, Set<Integer>> paired = remaining.flatMapToPair(pfmf);
+//        JavaPairRDD<String, Set<Integer>> groupedData = paired.reduceByKey((a, b) -> {
+//            Set<Integer> hs = new HashSet<>(a.size() + b.size());
+//            hs.addAll(a);
+//            hs.addAll(b);
+//            return hs;
+//        });
+//        groupedData.foreach(d -> printResult(d, seriConfig));
         getLog().info("Done");
     }
 

@@ -41,6 +41,18 @@
         <module>diva-genome-storage-hbase</module>
     </modules>
 
+
+    <repositories>
+        <repository>
+            <id>hortonworks-releases</id>
+            <url>http://repo.hortonworks.com/content/repositories/releases/</url>
+        </repository>
+        <repository>
+            <id>hortonworks-public</id>
+            <url>http://repo.hortonworks.com/content/groups/public</url>
+        </repository>
+    </repositories>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -112,6 +124,11 @@
             <dependency>
                 <groupId>org.opencb.opencga</groupId>
                 <artifactId>opencga-storage-hbase</artifactId>
+                <version>${opencga.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.opencb.opencga</groupId>
+                <artifactId>opencga-storage-hadoop-deps</artifactId>
                 <version>${opencga.version}</version>
             </dependency>
 
