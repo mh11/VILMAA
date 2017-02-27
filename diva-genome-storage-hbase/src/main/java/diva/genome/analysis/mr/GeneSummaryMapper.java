@@ -8,6 +8,7 @@ import diva.genome.storage.models.alleles.avro.VariantStats;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
 import org.opencb.biodata.models.variant.avro.ConsequenceType;
@@ -23,7 +24,7 @@ import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALY
 /**
  * Created by mh719 on 27/02/2017.
  */
-public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, GeneSummary> {
+public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, IntWritable> {
     public static final String BIOTYPE_PROTEIN_CODING = "protein_coding";
 
     private volatile HBaseAlleleCountsToAllelesConverter hBaseAlleleCountsToAllelesConverter;
@@ -114,7 +115,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, GeneSummary>
                     GeneSummary.Builder builder = GeneSummary.newBuilder();
                     builder.setCases(new ArrayList<>(affectedCases));
                     builder.setControls(new ArrayList<>(affectedCtls));
-                    context.write(new Text(ensGene), builder.build());
+                    context.write(new Text(ensGene), new IntWritable(affected.size()));
                 };
             } catch (Exception e) {
                 throw new IllegalStateException("Issue with variant " +

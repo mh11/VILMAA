@@ -12,6 +12,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.SnappyCodec;
 import org.apache.hadoop.mapreduce.Job;
@@ -83,7 +84,7 @@ public class NonsenseDriver extends AbstractAlleleDriver {
 
     }
 
-    public static class GeneSummaryReducer extends Reducer<Text, GeneSummary, AvroKey<CharSequence>, AvroValue<GeneSummary>> {
+    public static class GeneSummaryReducer extends Reducer<Text, IntWritable, AvroKey<CharSequence>, AvroValue<Integer>> {
 
         private GeneSummaryCombiner geneSummaryCombiner;
 
@@ -93,10 +94,11 @@ public class NonsenseDriver extends AbstractAlleleDriver {
         }
 
         @Override
-        protected void reduce(Text key, Iterable<GeneSummary> values, Context context) throws IOException, InterruptedException {
+        protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
             context.getCounter("DIVA", "reduce").increment(1);
-            GeneSummary combine = geneSummaryCombiner.combine(key, values);
-            context.write(new AvroKey<>(key.toString()), new AvroValue<>(combine));
+            context.write(new AvroKey<>(key.toString()), new AvroValue<>(geneSummaryCombiner.combineInt(values)));
+//            GeneSummary combine = geneSummaryCombiner.combine(key, values);
+//            context.write(new AvroKey<>(key.toString()), new AvroValue<>(combine));
         }
     }
 
