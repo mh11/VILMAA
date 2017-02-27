@@ -1,5 +1,6 @@
 package diva.genome.analysis.mr;
 
+import diva.genome.analysis.models.avro.GeneKey;
 import diva.genome.analysis.models.avro.GeneSummary;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -13,14 +14,14 @@ import java.util.Set;
 /**
  * Created by mh719 on 27/02/2017.
  */
-public class GeneSummaryCombiner extends Reducer<ImmutableBytesWritable, GeneSummary, ImmutableBytesWritable, GeneSummary> {
+public class GeneSummaryCombiner extends Reducer<GeneKey, GeneSummary, GeneKey, GeneSummary> {
 
     @Override
-    protected void reduce(ImmutableBytesWritable key, Iterable<GeneSummary> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(GeneKey key, Iterable<GeneSummary> values, Context context) throws IOException, InterruptedException {
         context.getCounter("DIVA", "combine").increment(1);
         Set<Integer> cases = new HashSet<>();
         Set<Integer> ctl = new HashSet<>();
-        String ensId = Bytes.toString(key.get());
+        String ensId = key.getEnsemblGeneId();
         values.forEach(gs -> {
             cases.addAll(gs.getCases());
             ctl.addAll(gs.getControls());

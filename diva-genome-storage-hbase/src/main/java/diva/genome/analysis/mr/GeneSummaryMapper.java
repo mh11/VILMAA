@@ -1,5 +1,6 @@
 package diva.genome.analysis.mr;
 
+import diva.genome.analysis.models.avro.GeneKey;
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.models.alleles.avro.AlleleCount;
@@ -22,7 +23,7 @@ import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALY
 /**
  * Created by mh719 on 27/02/2017.
  */
-public class GeneSummaryMapper extends AbstractHBaseMapReduce<ImmutableBytesWritable, GeneSummary> {
+public class GeneSummaryMapper extends AbstractHBaseMapReduce<GeneKey, GeneSummary> {
     public static final String BIOTYPE_PROTEIN_CODING = "protein_coding";
 
     private volatile HBaseAlleleCountsToAllelesConverter hBaseAlleleCountsToAllelesConverter;
@@ -113,7 +114,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<ImmutableBytesWrit
                     GeneSummary.Builder builder = GeneSummary.newBuilder();
                     builder.setCases(new ArrayList<>(affectedCases));
                     builder.setControls(new ArrayList<>(affectedCtls));
-                    context.write(new ImmutableBytesWritable(Bytes.toBytes(ensGene)), builder.build());
+                    context.write(GeneKey.newBuilder().setEnsemblGeneId(ensGene).build(), builder.build());
                 };
             } catch (Exception e) {
                 throw new IllegalStateException("Issue with variant " +

@@ -1,9 +1,10 @@
 package diva.genome.analysis.mr;
 
+import diva.genome.analysis.models.avro.GeneKey;
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.AbstractAlleleDriver;
 import org.apache.avro.mapreduce.AvroJob;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.avro.mapreduce.AvroKeyValueOutputFormat;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -65,8 +66,9 @@ public class NonsenseDriver extends AbstractAlleleDriver {
         getLog().info("Write to {} ouptut file ...", this.outAvroFile);
         FileOutputFormat.setOutputPath(job, this.outAvroFile); // set Path
         FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class); // compression
-        job.setOutputFormatClass(AvroKeyOutputFormat.class);
-        AvroJob.setOutputKeySchema(job, GeneSummary.getClassSchema()); // Set schema
+        job.setOutputFormatClass(AvroKeyValueOutputFormat.class);
+        AvroJob.setOutputKeySchema(job, GeneKey.getClassSchema()); // Set schema
+        AvroJob.setOutputValueSchema(job, GeneSummary.getClassSchema()); // Set schema
     }
 
 
