@@ -1,0 +1,10 @@
+@namespace("diva.genome.analysis.models.avro")
+
+protocol DivaAnalysis {
+
+   record GeneSummary {
+        string ensemblGeneId;
+        array<int> cases;
+        array<int> controls;
+   }
+}
