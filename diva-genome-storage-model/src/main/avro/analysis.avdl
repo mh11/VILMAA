@@ -8,7 +8,4 @@ protocol DivaAnalysis {
         array<int> controls;
    }
 
-   record GeneKey {
-        string ensemblGeneId;
-   }
 }

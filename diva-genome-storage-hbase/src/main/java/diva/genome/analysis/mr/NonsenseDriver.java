@@ -1,8 +1,8 @@
 package diva.genome.analysis.mr;
 
-import diva.genome.analysis.models.avro.GeneKey;
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.AbstractAlleleDriver;
+import org.apache.avro.Schema;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyValueOutputFormat;
 import org.apache.commons.lang.StringUtils;
@@ -10,6 +10,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.SnappyCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -55,6 +56,10 @@ public class NonsenseDriver extends AbstractAlleleDriver {
         return GeneSummaryCombiner.class;
     }
 
+    private Class<? extends Reducer> getReducerClass() {
+        return GeneSummaryCombiner.class;
+    }
+
     @Override
     protected void initMapReduceJob(String inTable, Job job, Scan scan, boolean addDependencyJar) throws IOException {
         String analysisTable = getHelper().getOutputTableAsString();
@@ -64,12 +69,20 @@ public class NonsenseDriver extends AbstractAlleleDriver {
         job.setCombinerClass(getCombinerClass());
 
         getLog().info("Write to {} ouptut file ...", this.outAvroFile);
+
+
         FileOutputFormat.setOutputPath(job, this.outAvroFile); // set Path
         FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class); // compression
-        job.setOutputFormatClass(AvroKeyValueOutputFormat.class);
-        AvroJob.setOutputKeySchema(job, GeneKey.getClassSchema()); // Set schema
+
+        job.setReducerClass(getReducerClass());
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(GeneSummary.class);
+        AvroJob.setOutputKeySchema(job, Schema.create(Schema.Type.STRING));
         AvroJob.setOutputValueSchema(job, GeneSummary.getClassSchema()); // Set schema
+
+        job.setOutputFormatClass(AvroKeyValueOutputFormat.class);
     }
+
 
 
     public static void main(String[] args) throws Exception {

@@ -2,8 +2,6 @@ package diva.genome.analysis.mr;
 
 import diva.genome.analysis.models.avro.GeneKey;
 import diva.genome.analysis.models.avro.GeneSummary;
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
