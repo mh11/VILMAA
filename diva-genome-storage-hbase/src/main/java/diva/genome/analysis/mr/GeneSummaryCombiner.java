@@ -17,6 +17,7 @@ public class GeneSummaryCombiner extends Reducer<ImmutableBytesWritable, GeneSum
 
     @Override
     protected void reduce(ImmutableBytesWritable key, Iterable<GeneSummary> values, Context context) throws IOException, InterruptedException {
+        context.getCounter("DIVA", "combine").increment(1);
         Set<Integer> cases = new HashSet<>();
         Set<Integer> ctl = new HashSet<>();
         String ensId = Bytes.toString(key.get());

@@ -98,7 +98,13 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<ImmutableBytesWrit
                         affectedCases.add(id);
                     }
                 });
+                if (cases.isEmpty() && ctl.isEmpty()) {
+                    context.getCounter("DIVA", "no-cases-and-controls").increment(1);
+                    return;
+                }
+                context.getCounter("DIVA", "variant-passed").increment(1);
                 for (String ensGene : ensGenes) {
+                    context.getCounter("DIVA", "gene-submitted").increment(1);
                     GeneSummary.Builder builder = GeneSummary.newBuilder();
                     builder.setCases(new ArrayList<>(affectedCases));
                     builder.setControls(new ArrayList<>(affectedCtls));
