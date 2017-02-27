@@ -67,6 +67,11 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<ImmutableBytesWrit
                 if (null == stats) {
                     throw new IllegalStateException("Stats are null");
                 }
+                Float opr = alleles.getOverallPassRate();
+                if (opr < 0.95) {
+                    context.getCounter("DIVA", "OPR-fail").increment(1);
+                    return;
+                }
                 Float ctlMaf = getControlFrequency(stats);
                 if (ctlMaf >= 0.001) {
                     context.getCounter("DIVA", "ctl-freq-high").increment(1);
