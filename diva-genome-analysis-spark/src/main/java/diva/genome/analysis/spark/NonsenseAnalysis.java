@@ -15,9 +15,12 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -27,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 import java.io.*;
+import java.security.PrivilegedExceptionAction;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -43,29 +47,20 @@ public class NonsenseAnalysis {
         return LOG;
     }
 
-    public static void main(String[] args) throws IOException, ClassNotFoundException {
-        String avroPath = StringUtils.EMPTY; // "file:///Users/mh719/data/to-avro_small.avro";
-        String config = StringUtils.EMPTY;
-        String master = StringUtils.EMPTY;
-        String home = StringUtils.EMPTY; // "/usr/hdp/current/spark2-client/"
-        if (args.length < 2) {
+    public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
+        if (args.length < 3) {
             throw new IllegalStateException("Path to file required");
         }
-        avroPath = args[0];
-        config = args[1];
-        if (args.length > 2) {
-            master =args[2];
-        };
-        if (args.length > 3) {
-            home =args[3];
-        };
+        String avroPath = args[0];
+        String config = args[1];
+        String user = args[2];
         getLog().info("avroPath = {}", avroPath);
         getLog().info("config = {}", config);
         SampleCollection sConfig = loadSampleCollection(config);
         SampleCollectionSerializable seriConfig = new SampleCollectionSerializable(sConfig);
 
-        SparkConf conf = buildSparkConf(home, NonsenseAnalysis.class.getName(), master);
-        JavaSparkContext sc = new JavaSparkContext(conf);
+        SparkConf sparkConf = buildSparkConf(StringUtils.EMPTY, NonsenseAnalysis.class.getName(), StringUtils.EMPTY);
+        JavaSparkContext sc = new JavaSparkContext(sparkConf);
 
         Configuration hbaseConf = HBaseConfiguration.create();
         hbaseConf.set(TableInputFormat.INPUT_TABLE, avroPath);
@@ -73,16 +68,39 @@ public class NonsenseAnalysis {
         hbaseConf.addResource(new Path("./hbase-site.xml"));
         getLog().info("Using zookeeper parent {} ", hbaseConf.get("zookeeper.znode.parent"));
 
-        // http://stackoverflow.com/questions/25040709/how-to-read-from-hbase-using-spark
-        // https://hortonworks.com/blog/spark-hbase-dataframe-based-hbase-connector/
-        JavaPairRDD<ImmutableBytesWritable, Result> hbaseRdd = sc.newAPIHadoopRDD(hbaseConf, TableInputFormat.class,
-                ImmutableBytesWritable.class, Result.class);
 
-        getLog().info("Build RDD ...");
-        long count = hbaseRdd.count();
-        getLog().info("Count finished with {} entries", count);
+        // https://community.hortonworks.com/questions/46500/spark-cant-connect-to-hbase-using-kerberos-in-clus.html
+//        hbaseConf.addResource(new Path(hbaseConfDir,"hbase-site.xml"));
+//        hbaseConf.addResource(new Path(hadoopConfDir,"core-site.xml"));
+//        hbaseConf.set("hbase.client.keyvalue.maxsize", "0");
+//        hbaseConf.set("hbase.rpc.controllerfactory.class","org.apache.hadoop.hbase.ipc.RpcControllerFactory");
+//        hbaseConf.set("hadoop.security.authentication", "kerberos");
+//        hbaseConf.set("hbase.security.authentication", "kerberos");
 
+        UserGroupInformation.setConfiguration(hbaseConf);
+//        String keyTab="/etc/security/keytabs/somekeytab";
+        String keyTab="./somekeytab";
+        getLog().info("Set keytab ");
+        UserGroupInformation ugi=UserGroupInformation.loginUserFromKeytabAndReturnUGI(user, keyTab);
+        getLog().info("Set ugi ");
+        UserGroupInformation.setLoginUser(ugi);
+        getLog().info("Do execute ");
+        ugi.doAs((PrivilegedExceptionAction<Void>) () -> {
+            getLog().info("Try to connect ");
+            Connection connection = ConnectionFactory.createConnection(hbaseConf);
+            getLog().info("Got connection {} ", connection);
 
+            // http://stackoverflow.com/questions/25040709/how-to-read-from-hbase-using-spark
+            // https://hortonworks.com/blog/spark-hbase-dataframe-based-hbase-connector/
+            JavaPairRDD<ImmutableBytesWritable, Result> hbaseRdd = sc.newAPIHadoopRDD(hbaseConf, TableInputFormat.class,
+                    ImmutableBytesWritable.class, Result.class);
+
+            getLog().info("Build RDD ...");
+            long count = hbaseRdd.count();
+            getLog().info("Count finished with {} entries", count);
+
+            return null;
+        });
 
 //        JavaRDD<AllelesAvro> rdd = loadParquet(sc, avroPath);
 //        PairFlatMapFunction<AllelesAvro, String, Set<Integer>> pfmf = alleles -> {
