@@ -69,6 +69,10 @@ public class NonsenseAnalysis {
 
         Configuration hbaseConf = HBaseConfiguration.create();
         hbaseConf.set(TableInputFormat.INPUT_TABLE, avroPath);
+        getLog().info("Using zookeeper parent {} ", hbaseConf.get("zookeeper.znode.parent"));
+        hbaseConf.addResource(new Path("./hbase-site.xml"));
+        getLog().info("Using zookeeper parent {} ", hbaseConf.get("zookeeper.znode.parent"));
+
         // http://stackoverflow.com/questions/25040709/how-to-read-from-hbase-using-spark
         // https://hortonworks.com/blog/spark-hbase-dataframe-based-hbase-connector/
         JavaPairRDD<ImmutableBytesWritable, Result> hbaseRdd = sc.newAPIHadoopRDD(hbaseConf, TableInputFormat.class,

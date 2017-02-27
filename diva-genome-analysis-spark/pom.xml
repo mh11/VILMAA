@@ -57,6 +57,10 @@
             <artifactId>shc</artifactId>
             <version>1.0.0-1.6-s_2.10</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.phoenix</groupId>
+            <artifactId>phoenix-core</artifactId>
+        </dependency>
     </dependencies>
 
     <profiles>
