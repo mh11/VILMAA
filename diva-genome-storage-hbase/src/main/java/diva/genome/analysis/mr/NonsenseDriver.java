@@ -3,6 +3,8 @@ package diva.genome.analysis.mr;
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.AbstractAlleleDriver;
 import org.apache.avro.Schema;
+import org.apache.avro.mapred.AvroKey;
+import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyValueOutputFormat;
 import org.apache.commons.lang.StringUtils;
@@ -56,10 +58,6 @@ public class NonsenseDriver extends AbstractAlleleDriver {
         return GeneSummaryCombiner.class;
     }
 
-    private Class<? extends Reducer> getReducerClass() {
-        return GeneSummaryCombiner.class;
-    }
-
     @Override
     protected void initMapReduceJob(String inTable, Job job, Scan scan, boolean addDependencyJar) throws IOException {
         String analysisTable = getHelper().getOutputTableAsString();
@@ -74,13 +72,32 @@ public class NonsenseDriver extends AbstractAlleleDriver {
         FileOutputFormat.setOutputPath(job, this.outAvroFile); // set Path
         FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class); // compression
 
-        job.setReducerClass(getReducerClass());
+        job.setReducerClass(GeneSummaryReducer.class);
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(GeneSummary.class);
+
         AvroJob.setOutputKeySchema(job, Schema.create(Schema.Type.STRING));
         AvroJob.setOutputValueSchema(job, GeneSummary.getClassSchema()); // Set schema
 
         job.setOutputFormatClass(AvroKeyValueOutputFormat.class);
+
+    }
+
+    public static class GeneSummaryReducer extends Reducer<Text, GeneSummary, AvroKey<CharSequence>, AvroValue<GeneSummary>> {
+
+        private GeneSummaryCombiner geneSummaryCombiner;
+
+        @Override
+        protected void setup(Context context) throws IOException, InterruptedException {
+            geneSummaryCombiner = new GeneSummaryCombiner();
+        }
+
+        @Override
+        protected void reduce(Text key, Iterable<GeneSummary> values, Context context) throws IOException, InterruptedException {
+            context.getCounter("DIVA", "reduce").increment(1);
+            GeneSummary combine = geneSummaryCombiner.combine(key, values);
+            context.write(new AvroKey<>(key.toString()), new AvroValue<>(combine));
+        }
     }
 
 

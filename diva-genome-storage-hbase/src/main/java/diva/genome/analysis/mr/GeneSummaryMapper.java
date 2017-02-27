@@ -5,8 +5,6 @@ import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllel
 import diva.genome.storage.models.alleles.avro.AlleleCount;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.alleles.avro.VariantStats;
-import org.apache.avro.mapred.AvroKey;
-import org.apache.avro.mapred.AvroValue;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -25,7 +23,7 @@ import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALY
 /**
  * Created by mh719 on 27/02/2017.
  */
-public class GeneSummaryMapper extends AbstractHBaseMapReduce<AvroKey<Text>, AvroValue<GeneSummary>> {
+public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, GeneSummary> {
     public static final String BIOTYPE_PROTEIN_CODING = "protein_coding";
 
     private volatile HBaseAlleleCountsToAllelesConverter hBaseAlleleCountsToAllelesConverter;
@@ -116,7 +114,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<AvroKey<Text>, Avr
                     GeneSummary.Builder builder = GeneSummary.newBuilder();
                     builder.setCases(new ArrayList<>(affectedCases));
                     builder.setControls(new ArrayList<>(affectedCtls));
-                    context.write(new AvroKey<>(new Text(ensGene)), new AvroValue<>(builder.build()));
+                    context.write(new Text(ensGene), builder.build());
                 };
             } catch (Exception e) {
                 throw new IllegalStateException("Issue with variant " +
