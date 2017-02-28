@@ -196,7 +196,7 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         List<Integer> hets = new ArrayList<>();
         List<Integer> homVar = new ArrayList<>();
         List<Integer> oneAlt = new ArrayList<>();
-        hets.addAll(bean.getReference().getOrDefault(1, Collections.emptyList()));
+        oneRef.addAll(bean.getReference().getOrDefault(1, Collections.emptyList()));
         bean.getAlternate().getOrDefault(1, Collections.emptyList()).forEach((k) ->{
             if (oneRef.remove(k)) {
                 hets.add(k);// is het
