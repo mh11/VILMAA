@@ -14,6 +14,7 @@ import org.apache.hadoop.util.StringUtils;
 import org.opencb.biodata.models.variant.avro.ConsequenceType;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.AbstractHBaseMapReduce;
+import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 
 import java.io.IOException;
 import java.util.*;
@@ -36,6 +37,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
+	studiesRow = getHelper().generateVariantRowKey(GenomeHelper.DEFAULT_METADATA_ROW_KEY, 0);
         readWrite = new GeneSummaryReadWrite();
         StudyConfiguration sc = getStudyConfiguration();
         BiMap<String, Integer> cohortIds = sc.getCohortIds();
