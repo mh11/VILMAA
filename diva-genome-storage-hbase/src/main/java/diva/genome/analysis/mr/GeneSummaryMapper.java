@@ -99,9 +99,9 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
                 });
 
                 if (transcripts.isEmpty()) {
-                    context.getCounter("DIVA", "csq-biotype-not-found").increment(1);
                     return;
                 }
+                context.getCounter("DIVA", "passed-variant-filters").increment(1);
                 Set<Integer> affected = getAffected(alleles.getAlleleCount());
                 Set<Integer> affectedCases = new HashSet<>();
                 Set<Integer> affectedCtls = new HashSet<>();

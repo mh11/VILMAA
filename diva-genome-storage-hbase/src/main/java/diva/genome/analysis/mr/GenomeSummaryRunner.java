@@ -1,6 +1,8 @@
 package diva.genome.analysis.mr;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Result;
@@ -15,7 +17,9 @@ import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.CONFIG_VARIANT_TABLE_NAME;
@@ -57,7 +61,7 @@ public class GenomeSummaryRunner extends NonsenseDriver {
                     ResultScanner scanner = c.getScanner(scan);
                     for (Result result : scanner) {
                         if (iCnt % 1000 == 0) {
-                            getLog().info("Processed {} variants ...", iCnt);
+                            getLog().info("Processed {} variants and {} submitted ...", iCnt, context.submitted.size());
                             context.printCounts();
                         }
                         tm.map(new ImmutableBytesWritable(result.getRow()), result, context);
@@ -82,6 +86,7 @@ public class GenomeSummaryRunner extends NonsenseDriver {
 
         public class MyContext extends Mapper.Context {
             private Configuration conf;
+            public List<Pair<Object, Object>> submitted = new ArrayList<>();
 
             public MyContext(Configuration conf) {
                 this.conf = conf;
@@ -113,7 +118,7 @@ public class GenomeSummaryRunner extends NonsenseDriver {
 
             @Override
             public void write(Object o, Object o2) throws IOException, InterruptedException {
-
+                submitted.add(new ImmutablePair<>(o, o2));
             }
 
             @Override
