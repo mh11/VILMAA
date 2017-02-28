@@ -20,6 +20,10 @@ public class GeneSummaryCombiner extends Reducer<Text, ImmutableBytesWritable, T
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
+        init();
+    }
+
+    void init() {
         readWrite = new GeneSummaryReadWrite();
     }
 

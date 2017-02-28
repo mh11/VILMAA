@@ -92,6 +92,7 @@ public class NonsenseDriver extends AbstractAlleleDriver {
         @Override
         protected void setup(Context context) throws IOException, InterruptedException {
             geneSummaryCombiner = new GeneSummaryCombiner();
+            geneSummaryCombiner.init();
         }
 
         @Override
