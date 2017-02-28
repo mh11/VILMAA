@@ -1,54 +1,51 @@
 package diva.genome.analysis.mr;
 
 import diva.genome.analysis.models.avro.GeneSummary;
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Created by mh719 on 27/02/2017.
  */
-public class GeneSummaryCombiner extends Reducer<Text, IntWritable, Text, IntWritable> {
+public class GeneSummaryCombiner extends Reducer<Text, ImmutableBytesWritable, Text, ImmutableBytesWritable> {
+
+    private GeneSummaryReadWrite readWrite;
 
     @Override
-    protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+    protected void setup(Context context) throws IOException, InterruptedException {
+        super.setup(context);
+        readWrite = new GeneSummaryReadWrite();
+    }
+
+    @Override
+    protected void reduce(Text key, Iterable<ImmutableBytesWritable> values, Context context) throws IOException, InterruptedException {
         context.getCounter("DIVA", "combine").increment(1);
-        context.write(key, new IntWritable(combineInt(values)));
-//        GeneSummary geneSummary = combine(key, values);
-//
-//        context.write(key, geneSummary);
+        GeneSummary geneSummary = combine(values);
+        context.write(key, new ImmutableBytesWritable(readWrite.write(geneSummary)));
     }
 
-    public Integer combineInt(Iterable<IntWritable> values) {
-        AtomicInteger cnt = new AtomicInteger(0);
-        values.forEach(i -> cnt.addAndGet(i.get()));
-        return cnt.get();
-
-//        values.stream().
-//        return GeneSummary.newBuilder()
-//                .setEnsemblGeneId(key.toString())
-//                .setCases(new ArrayList<>(cases))
-//                .setControls(new ArrayList<>(ctl))
-//                .build();
-    }
-
-    public GeneSummary combine(Text key, Iterable<GeneSummary> values) {
+    public GeneSummary combine(Iterable<ImmutableBytesWritable> values) {
         Set<Integer> cases = new HashSet<>();
         Set<Integer> ctl = new HashSet<>();
+        AtomicReference<GeneSummary> tmp = new AtomicReference<>();
         values.forEach(gs -> {
-            cases.addAll(gs.getCases());
-            ctl.addAll(gs.getControls());
+            GeneSummary read = readWrite.read(gs.get(), tmp.get());
+            cases.addAll(read.getCases());
+            ctl.addAll(read.getControls());
+            tmp.set(read);
         });
-        return GeneSummary.newBuilder()
-                .setEnsemblGeneId(key.toString())
-                .setCases(new ArrayList<>(cases))
-                .setControls(new ArrayList<>(ctl))
-                .build();
+        // reuse
+        GeneSummary summary = tmp.get();
+        summary.getCases().clear();
+        summary.getCases().addAll(cases);
+        summary.getControls().clear();
+        summary.getControls().addAll(ctl);
+        return summary;
     }
 }

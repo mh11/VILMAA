@@ -1,5 +1,6 @@
 package diva.genome.analysis.mr;
 
+import com.google.common.collect.BiMap;
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.models.alleles.avro.AlleleCount;
@@ -8,7 +9,6 @@ import diva.genome.storage.models.alleles.avro.VariantStats;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
 import org.opencb.biodata.models.variant.avro.ConsequenceType;
@@ -24,27 +24,32 @@ import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALY
 /**
  * Created by mh719 on 27/02/2017.
  */
-public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, IntWritable> {
+public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableBytesWritable> {
     public static final String BIOTYPE_PROTEIN_CODING = "protein_coding";
 
     private volatile HBaseAlleleCountsToAllelesConverter hBaseAlleleCountsToAllelesConverter;
     private volatile byte[] studiesRow;
     private Set<String> exportCohort;
     private Map<String, Set<Integer>> cohorts;
+    private GeneSummaryReadWrite readWrite;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
+        readWrite = new GeneSummaryReadWrite();
         StudyConfiguration sc = getStudyConfiguration();
+        BiMap<String, Integer> cohortIds = sc.getCohortIds();
+        getLog().info("Cohorts in sc: ", cohortIds.keySet());
         Set<Integer> sampleIdsInCohorts = new HashSet<>();
         cohorts = new HashMap<>();
         this.exportCohort = new HashSet<>(Arrays.asList(
                 context.getConfiguration().getStrings(CONFIG_ANALYSIS_EXPORT_COHORTS, "ALL")));
         exportCohort.forEach((c) -> {
-            if (sc.getCohortIds().containsKey(c)) {
+            getLog().info("Check Cohort {} ...", c);
+            if (!cohortIds.containsKey(c)) {
                 throw new IllegalStateException("Cohort does not exist: " + c);
             }
-            Integer id = sc.getCohortIds().get(c);
+            Integer id = cohortIds.get(c);
             Set<Integer> sampleIds = sc.getCohorts().getOrDefault(id, Collections.emptySet());
             sampleIdsInCohorts.addAll(sampleIds);
             cohorts.put(c, sampleIds);
@@ -57,6 +62,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, IntWritable>
         converter.setParseAnnotations(true);
         converter.setParseStatistics(true);
         converter.setCohortWhiteList(this.exportCohort);
+        hBaseAlleleCountsToAllelesConverter = converter;
     }
 
     @Override
@@ -115,7 +121,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, IntWritable>
                     GeneSummary.Builder builder = GeneSummary.newBuilder();
                     builder.setCases(new ArrayList<>(affectedCases));
                     builder.setControls(new ArrayList<>(affectedCtls));
-                    context.write(new Text(ensGene), new IntWritable(affected.size()));
+                    context.write(new Text(ensGene), new ImmutableBytesWritable(readWrite.write(builder.build())));
                 };
             } catch (Exception e) {
                 throw new IllegalStateException("Issue with variant " +

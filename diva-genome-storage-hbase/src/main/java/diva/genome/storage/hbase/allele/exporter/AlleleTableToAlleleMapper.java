@@ -44,7 +44,7 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
                 context.getConfiguration().getStrings(CONFIG_ANALYSIS_EXPORT_COHORTS, "ALL")));
         if (withGenotype) {
             exportCohort.forEach((c) -> {
-                if (sc.getCohortIds().containsKey(c)) {
+                if (!sc.getCohortIds().containsKey(c)) {
                     throw new IllegalStateException("Cohort does not exist: " + c);
                 }
                 Integer id = sc.getCohortIds().get(c);

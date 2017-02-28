@@ -11,8 +11,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.SnappyCodec;
 import org.apache.hadoop.mapreduce.Job;
@@ -63,7 +63,7 @@ public class NonsenseDriver extends AbstractAlleleDriver {
     protected void initMapReduceJob(String inTable, Job job, Scan scan, boolean addDependencyJar) throws IOException {
         String analysisTable = getHelper().getOutputTableAsString();
         getLog().info("Read from {} table ...", analysisTable);
-        super.initMapReduceJob(this.getCountTable(), job, scan, addDependencyJar);
+        super.initMapReduceJob(analysisTable, job, scan, addDependencyJar);
 
         job.setCombinerClass(getCombinerClass());
 
@@ -75,16 +75,17 @@ public class NonsenseDriver extends AbstractAlleleDriver {
 
         job.setReducerClass(GeneSummaryReducer.class);
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(GeneSummary.class);
+        job.setMapOutputValueClass(ImmutableBytesWritable.class);
 
         AvroJob.setOutputKeySchema(job, Schema.create(Schema.Type.STRING));
         AvroJob.setOutputValueSchema(job, GeneSummary.getClassSchema()); // Set schema
 
         job.setOutputFormatClass(AvroKeyValueOutputFormat.class);
+//        job.setOutputFormatClass(NullOutputFormat.class);   // because we aren't emitting anything from mapper
 
     }
 
-    public static class GeneSummaryReducer extends Reducer<Text, IntWritable, AvroKey<CharSequence>, AvroValue<Integer>> {
+    public static class GeneSummaryReducer extends Reducer<Text, ImmutableBytesWritable, AvroKey<CharSequence>, AvroValue<GeneSummary>> {
 
         private GeneSummaryCombiner geneSummaryCombiner;
 
@@ -94,11 +95,9 @@ public class NonsenseDriver extends AbstractAlleleDriver {
         }
 
         @Override
-        protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+        protected void reduce(Text key, Iterable<ImmutableBytesWritable> values, Context context) throws IOException, InterruptedException {
             context.getCounter("DIVA", "reduce").increment(1);
-            context.write(new AvroKey<>(key.toString()), new AvroValue<>(geneSummaryCombiner.combineInt(values)));
-//            GeneSummary combine = geneSummaryCombiner.combine(key, values);
-//            context.write(new AvroKey<>(key.toString()), new AvroValue<>(combine));
+            context.write(new AvroKey<>(key.toString()), new AvroValue<>(geneSummaryCombiner.combine(values)));
         }
     }
 
