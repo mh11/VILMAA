@@ -37,7 +37,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-	studiesRow = getHelper().generateVariantRowKey(GenomeHelper.DEFAULT_METADATA_ROW_KEY, 0);
+        studiesRow = getHelper().generateVariantRowKey(GenomeHelper.DEFAULT_METADATA_ROW_KEY, 0);
         readWrite = new GeneSummaryReadWrite();
         StudyConfiguration sc = getStudyConfiguration();
         BiMap<String, Integer> cohortIds = sc.getCohortIds();

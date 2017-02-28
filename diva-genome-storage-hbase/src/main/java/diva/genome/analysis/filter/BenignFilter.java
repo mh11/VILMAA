@@ -1,4 +1,4 @@
-package diva.genome.analysis.spark.filter;
+package diva.genome.analysis.filter;
 
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import org.apache.commons.lang.StringUtils;
@@ -13,31 +13,19 @@ import java.util.function.Predicate;
 /**
  * Created by mh719 on 26/02/2017.
  */
-public class BenignFilter  implements Function<AllelesAvro, Boolean>, Predicate<AllelesAvro>,
-        org.apache.spark.api.java.function.Function<AllelesAvro, Boolean> {
+public class BenignFilter  extends AbstractFilter<AllelesAvro> {
 
     public static final String SIFT = "sift";
     public static final String POLYPHEN = "polyphen";
     public static final String SIFT_TOLERATED = "tolerated";
     public static final String POLY_BENIGN = "benign";
 
-
     @Override
-    public Boolean apply(AllelesAvro allelesAvro) {
+    public Boolean doTest(AllelesAvro allelesAvro) {
         if (allelesAvro.getAnnotation() == null || allelesAvro.getAnnotation().getConsequenceTypes() == null) {
             return  false;
         }
         return hasBenign(allelesAvro.getAnnotation().getConsequenceTypes());
-    }
-
-    @Override
-    public boolean test(AllelesAvro allelesAvro) {
-        return apply(allelesAvro);
-    }
-
-    @Override
-    public Boolean call(AllelesAvro allelesAvro) throws Exception {
-        return apply(allelesAvro);
     }
 
     public boolean hasBenign(List<ConsequenceType> annotations) {

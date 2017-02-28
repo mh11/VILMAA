@@ -27,7 +27,7 @@ import java.util.Objects;
  */
 public class NonsenseDriver extends AbstractAlleleDriver {
     public static final String CONFIG_ANALYSIS_EXPORT_AVRO_PATH = "diva.genome.analysis.models.avro.file";
-
+    public static final String CONFIG_ANALYSIS_MR_ANALYSISTYPE = "diva.genome.analysis.mr.analysisType";
 
     private Path outAvroFile;
 
@@ -101,8 +101,6 @@ public class NonsenseDriver extends AbstractAlleleDriver {
             context.write(new AvroKey<>(key.toString()), new AvroValue<>(geneSummaryCombiner.combine(values)));
         }
     }
-
-
 
     public static void main(String[] args) throws Exception {
         try {

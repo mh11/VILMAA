@@ -1,6 +1,5 @@
-package diva.genome.analysis.spark.filter;
+package diva.genome.analysis.filter;
 
-import diva.genome.analysis.VariantConsequence;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.alleles.avro.VariantAnnotation;
 import org.apache.commons.lang.StringUtils;
@@ -15,8 +14,7 @@ import java.util.stream.Collectors;
 /**
  * Created by mh719 on 25/02/2017.
  */
-public class NonsenseFilter implements Function<AllelesAvro, Boolean>, Predicate<AllelesAvro> ,
-        org.apache.spark.api.java.function.Function<AllelesAvro, Boolean> {
+public class NonsenseFilter implements Function<AllelesAvro, Boolean>, Predicate<AllelesAvro> {
 
     public static final String BIOTYPE_PROTEIN_CODING = "protein_coding";
 
@@ -57,8 +55,4 @@ public class NonsenseFilter implements Function<AllelesAvro, Boolean>, Predicate
         return test(allelesAvro);
     }
 
-    @Override
-    public Boolean call(AllelesAvro allelesAvro) throws Exception {
-        return test(allelesAvro);
-    }
 }

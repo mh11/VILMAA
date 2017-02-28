@@ -1,4 +1,4 @@
-package diva.genome.analysis;
+package diva.genome.analysis.filter;
 
 /**
  * Created by mh719 on 25/02/2017.
@@ -20,4 +20,23 @@ public class VariantConsequence {
                 return false;
         }
     }
+
+    public static Boolean isModerate(String name) {
+        switch (name) {
+            case "inframe_insertion":
+            case "inframe_deletion":
+            case "missense_variant":
+            case "protein_altering_variant":
+            case "regulatory_region_ablation":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static Boolean isHighOrModerate(String name) {
+        return isHigh(name) || isModerate(name);
+    }
+
+
 }
