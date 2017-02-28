@@ -22,6 +22,16 @@ import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTab
  */
 public class GenomeSummaryRunner extends NonsenseDriver {
 
+
+    public static void main(String[] args) throws Exception {
+        try {
+            System.exit(privateMain(args, null, new GenomeSummaryRunner()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
     @Override
     public int run(String[] args) throws Exception {
         return super.run(args);
