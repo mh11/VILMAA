@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.io.RawComparator;
@@ -14,6 +15,8 @@ import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.CONFIG_VARIANT_TABLE_NAME;
 
@@ -41,7 +44,7 @@ public class GenomeSummaryRunner extends NonsenseDriver {
     protected boolean executeJob(Job job) throws IOException, InterruptedException, ClassNotFoundException {
         // run local
         MyTestMapper tm = new MyTestMapper();
-        Mapper.Context context = tm.createContext(getConf());
+        MyTestMapper.MyContext context = tm.createContext(getConf());
         tm.setup(context);
 
         VariantTableHelper helper = getHelper();
@@ -50,8 +53,15 @@ public class GenomeSummaryRunner extends NonsenseDriver {
         try {
             helper.getHBaseManager().act(variantTable, c -> {
                 try {
-                    for (Result result : c.getScanner(scan)) {
+                    int iCnt = 0;
+                    ResultScanner scanner = c.getScanner(scan);
+                    for (Result result : scanner) {
+                        if (iCnt % 1000 == 0) {
+                            getLog().info("Processed {} variants ...", iCnt);
+                            context.printCounts();
+                        }
                         tm.map(new ImmutableBytesWritable(result.getRow()), result, context);
+                        ++iCnt;
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -64,6 +74,7 @@ public class GenomeSummaryRunner extends NonsenseDriver {
     }
 
     public static class MyTestMapper extends GeneSummaryMapper {
+        private Map<String, Counter> counterMap = new HashMap<>();
 
         public MyContext createContext(Configuration conf) {
             return new MyContext(conf);
@@ -74,6 +85,10 @@ public class GenomeSummaryRunner extends NonsenseDriver {
 
             public MyContext(Configuration conf) {
                 this.conf = conf;
+            }
+
+            public void printCounts() {
+                counterMap.forEach((k, v) -> getLog().info("... {} -> {}", k, v.getValue()));
             }
 
             @Override
@@ -128,12 +143,12 @@ public class GenomeSummaryRunner extends NonsenseDriver {
 
             @Override
             public Counter getCounter(Enum<?> anEnum) {
-                return new Counters.Counter();
+                return counterMap.computeIfAbsent(anEnum.toString(), (x) -> new Counters.Counter());
             }
 
             @Override
             public Counter getCounter(String s, String s1) {
-                return new Counters.Counter();
+                return counterMap.computeIfAbsent(s + "_" + s1, (x) -> new Counters.Counter());
             }
 
             @Override
