@@ -119,6 +119,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
                 for (String ensGene : ensGenes) {
                     context.getCounter("DIVA", "gene-submitted").increment(1);
                     GeneSummary.Builder builder = GeneSummary.newBuilder();
+                    builder.setEnsemblGeneId(ensGene);
                     builder.setCases(new ArrayList<>(affectedCases));
                     builder.setControls(new ArrayList<>(affectedCtls));
                     context.write(new Text(ensGene), new ImmutableBytesWritable(readWrite.write(builder.build())));
