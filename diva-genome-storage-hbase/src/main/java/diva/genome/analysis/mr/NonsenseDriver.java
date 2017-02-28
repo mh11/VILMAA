@@ -120,7 +120,7 @@ public class NonsenseDriver extends AbstractAlleleDriver {
             SingleColumnValueFilter mafCtlFilter = new SingleColumnValueFilter(
                     getHelper().getColumnFamily(),
                     mafColumn,
-                    CompareFilter.CompareOp.GREATER_OR_EQUAL,
+                    CompareFilter.CompareOp.LESS,
                     PFloat.INSTANCE.toBytes(mafCutoff));
             mafCtlFilter.setFilterIfMissing(false);
             mafCtlFilter.setLatestVersionOnly(true);
