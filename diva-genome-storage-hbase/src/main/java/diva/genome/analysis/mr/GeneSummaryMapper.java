@@ -101,8 +101,8 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
                 Set<Integer> affected = getAffected(alleles.getAlleleCount());
                 Set<Integer> affectedCases = new HashSet<>();
                 Set<Integer> affectedCtls = new HashSet<>();
-                Set<Integer> ctl = cohorts.get("PAH");
-                Set<Integer> cases = cohorts.get("PAH_CONTROL_UNRELATED");
+                Set<Integer> cases = cohorts.get("PAH");
+                Set<Integer> ctl = cohorts.get("PAH_CONTROL_UNRELATED");
                 affected.forEach(id -> {
                     if (ctl.contains(id)) {
                         affectedCtls.add(id);
