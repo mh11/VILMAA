@@ -28,14 +28,14 @@ public class BenignFilter  extends AbstractFilter<AllelesAvro> {
         return hasBenign(allelesAvro.getAnnotation().getConsequenceTypes());
     }
 
-    public boolean hasBenign(List<ConsequenceType> annotations) {
+    public static boolean hasBenign(List<ConsequenceType> annotations) {
         if (null == annotations) {
             return false;
         }
         return annotations.stream().anyMatch(a -> isBenign(a.getProteinVariantAnnotation()));
     }
 
-    public boolean isBenign(ProteinVariantAnnotation prot) {
+    public static boolean isBenign(ProteinVariantAnnotation prot) {
         if (null == prot) {
             return false;
         }

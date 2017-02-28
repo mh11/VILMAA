@@ -1,25 +1,25 @@
 package diva.genome.analysis.mr;
 
 import com.google.common.collect.BiMap;
+import diva.genome.analysis.GenomeAnalysis;
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.models.alleles.avro.AlleleCount;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
-import diva.genome.storage.models.alleles.avro.VariantStats;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
-import org.opencb.biodata.models.variant.avro.ConsequenceType;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.AbstractHBaseMapReduce;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
+import static diva.genome.analysis.mr.NonsenseDriver.*;
 import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALYSIS_EXPORT_COHORTS;
 
 /**
@@ -29,6 +29,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
     public static final String BIOTYPE_PROTEIN_CODING = "protein_coding";
 
     private volatile HBaseAlleleCountsToAllelesConverter hBaseAlleleCountsToAllelesConverter;
+    private volatile GenomeAnalysis analysis;
     private volatile byte[] studiesRow;
     private Set<String> exportCohort;
     private Map<String, Set<Integer>> cohorts;
@@ -46,6 +47,25 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         cohorts = new HashMap<>();
         this.exportCohort = new HashSet<>(Arrays.asList(
                 context.getConfiguration().getStrings(CONFIG_ANALYSIS_EXPORT_COHORTS, "ALL")));
+
+        String analysistype = context.getConfiguration().get(CONFIG_ANALYSIS_MR_ANALYSISTYPE, "");
+        getLog().info("Found {} analysis type ", analysistype);
+
+        String idxCohort = context.getConfiguration().get(CONFIG_ANALYSIS_ASSOC_CASES, "");
+        getLog().info("Use {} as cases cohort ", idxCohort);
+        String ctlCohort = context.getConfiguration().get(CONFIG_ANALYSIS_ASSOC_CTL, "");
+        getLog().info("Use {} as control cohort ", ctlCohort);
+
+        float ctlMaf = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF, 0.0001F);
+        getLog().info("Use {} as Control MAF cutoff ", ctlMaf);
+        float opr = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_OPR, 0.95F);
+        getLog().info("Use {} as OPR cutoff ", ctlMaf);
+
+        Float caddScore = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_COMBINED_CADD, 15);
+
+        this.exportCohort.add(idxCohort);
+        this.exportCohort.add(ctlCohort);
+
         exportCohort.forEach((c) -> {
             getLog().info("Check Cohort {} ...", c);
             if (!cohortIds.containsKey(c)) {
@@ -65,6 +85,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         converter.setParseStatistics(true);
         converter.setCohortWhiteList(this.exportCohort);
         hBaseAlleleCountsToAllelesConverter = converter;
+        this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, ctlMaf, opr, caddScore);
     }
 
     @Override
@@ -73,30 +94,11 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         if (!isMetaRow(value)) { // ignore _METADATA row
             AllelesAvro alleles = convertToVariant(value);
             try {
-                Map<String, VariantStats> stats = alleles.getStats();
-                if (null == stats) {
-                    throw new IllegalStateException("Stats are null");
-                }
-                Float opr = alleles.getOverallPassRate();
-                if (opr < 0.95) {
-                    context.getCounter("DIVA", "OPR-fail").increment(1);
-                    return;
-                }
-                Float ctlMaf = getControlFrequency(stats);
-                if (ctlMaf >= 0.0001) {
-                    context.getCounter("DIVA", "ctl-freq-high").increment(1);
-                    return;
-                }
-                if (!hasNonsenseVariant(alleles.getConsequenceTypes())) {
-                    context.getCounter("DIVA", "csq-not-nonsense").increment(1);
-                    return;
-                }
-                if (!hasProteinCodingGene(alleles.getBioTypes())) {
-                    context.getCounter("DIVA", "biotype-not-protein-coding").increment(1);
-                    return;
-                }
-                Set<String> ensGenes = getProteinCodingNonense(alleles.getAnnotation().getConsequenceTypes());
-                if (ensGenes.isEmpty()) {
+                Set<Pair<String, String>> transcripts = this.analysis.findTranscripts(alleles, (s) -> {
+                    context.getCounter("DIVA", s).increment(1);
+                });
+
+                if (transcripts.isEmpty()) {
                     context.getCounter("DIVA", "csq-biotype-not-found").increment(1);
                     return;
                 }
@@ -118,13 +120,14 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
                     return;
                 }
                 context.getCounter("DIVA", "variant-passed").increment(1);
-                for (String ensGene : ensGenes) {
+                for (Pair<String, String> transcript : transcripts) {
                     context.getCounter("DIVA", "gene-submitted").increment(1);
                     GeneSummary.Builder builder = GeneSummary.newBuilder();
-                    builder.setEnsemblGeneId(ensGene);
+                    builder.setEnsemblGeneId(transcript.getKey());
+                    builder.setEnsemblTranscriptId(transcript.getValue());
                     builder.setCases(new ArrayList<>(affectedCases));
                     builder.setControls(new ArrayList<>(affectedCtls));
-                    context.write(new Text(ensGene), new ImmutableBytesWritable(readWrite.write(builder.build())));
+                    context.write(new Text(transcript.getValue()), new ImmutableBytesWritable(readWrite.write(builder.build())));
                 };
             } catch (Exception e) {
                 throw new IllegalStateException("Issue with variant " +
@@ -140,51 +143,6 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         // add other possible combinations which have at lest one of this affected allele
         count.getAltAlleleCounts().forEach((k, v) -> affected.addAll(v));
         return affected;
-    }
-
-    private Set<String> getProteinCodingNonense(List<ConsequenceType> consequenceTypes) {
-        return consequenceTypes.stream().filter(csq ->
-                isProteinCoding(csq.getBiotype()) &&
-                        csq.getSequenceOntologyTerms().stream().anyMatch(s -> isNonsenseVariant(s.getName())))
-                .map(ConsequenceType::getEnsemblGeneId).collect(Collectors.toSet());
-    }
-
-    private boolean hasProteinCodingGene(List<String> bioTypes) {
-        return bioTypes.stream().anyMatch(s -> isProteinCoding(s));
-    }
-
-    private boolean isProteinCoding(String s) {
-        return org.apache.commons.lang.StringUtils.equals(s, BIOTYPE_PROTEIN_CODING);
-    }
-
-    private boolean hasNonsenseVariant(List<String> consequenceTypes) {
-        for (String csq : consequenceTypes) {
-            if (isNonsenseVariant(csq)) return true;
-        }
-        return false;
-    }
-
-    private boolean isNonsenseVariant(String csq) {
-        switch (csq) {
-            case "transcript_ablation":
-            case "splice_acceptor_variant":
-            case "splice_donor_variant":
-            case "stop_gained":
-            case "frameshift_variant":
-            case "stop_lost":
-            case "start_lost":
-            case "transcript_amplification":
-                return true;
-        }
-        return false;
-    }
-
-    private Float getControlFrequency(Map<String, VariantStats> stats) {
-        VariantStats controls = stats.get("PAH_CONTROL_UNRELATED");
-        if (null == controls) {
-            throw new IllegalStateException("Control stats are null");
-        }
-        return controls.getMaf();
     }
 
     protected boolean isMetaRow(Result value) {

@@ -4,6 +4,7 @@ protocol DivaAnalysis {
 
    record GeneSummary {
         string ensemblGeneId;
+        string ensemblTranscriptId;
         array<int> cases;
         array<int> controls;
    }
