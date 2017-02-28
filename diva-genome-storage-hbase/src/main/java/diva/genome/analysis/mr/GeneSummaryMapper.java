@@ -83,7 +83,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
                     return;
                 }
                 Float ctlMaf = getControlFrequency(stats);
-                if (ctlMaf >= 0.001) {
+                if (ctlMaf >= 0.0001) {
                     context.getCounter("DIVA", "ctl-freq-high").increment(1);
                     return;
                 }
