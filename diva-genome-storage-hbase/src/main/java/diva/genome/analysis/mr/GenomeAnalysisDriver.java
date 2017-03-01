@@ -146,7 +146,7 @@ public class GenomeAnalysisDriver extends AbstractAlleleDriver {
 
             filterList.addFilter(mafCtlFilter);
 
-            float oprCutoff = getConf().getFloat(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS, 1);
+            float oprCutoff = getConf().getFloat(CONFIG_ANALYSIS_FILTER_OPR, 1);
             /* OPR filter */
             for (String cohort : oprCohorts) {
                 Integer oprCohortId = sc.getCohortIds().get(cohort);
