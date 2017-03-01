@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.stats;
 
 import com.google.common.collect.BiMap;
+import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
@@ -89,8 +90,10 @@ public class AlleleTableStatsDriver extends AbstractAnalysisTableDriver {
         }
         // update PHOENIX definition with statistic columns
         VariantPhoenixHelper variantPhoenixHelper = new VariantPhoenixHelper(getHelper());
+        AlleleTablePhoenixHelper allelePhoenixHelper = new AlleleTablePhoenixHelper(getHelper());
         try (Connection connection = variantPhoenixHelper.newJdbcConnection()) {
             variantPhoenixHelper.updateStatsColumns(connection, variantTable, sc);
+            allelePhoenixHelper.updateStatsColumns(connection, variantTable, sc);
         } catch (SQLException | ClassNotFoundException e) {
             getLog().error("Problems updating PHOENIX table!!!", e);
             throw new IllegalStateException("Problems updating PHOENIX table", e);

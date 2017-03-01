@@ -7,6 +7,7 @@ import org.apache.phoenix.schema.types.PDataType;
 import org.apache.phoenix.schema.types.PFloat;
 import org.apache.phoenix.schema.types.PUnsignedInt;
 import org.apache.phoenix.schema.types.PUnsignedIntArray;
+import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.PhoenixHelper;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper;
@@ -14,7 +15,10 @@ import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHel
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter.*;
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.DEL_SYMBOL;
@@ -100,5 +104,16 @@ public class AlleleTablePhoenixHelper {
 
     public static PhoenixHelper.Column getOprColumn(int studyId, int cohortId) {
         return PhoenixHelper.Column.build(STATS_PREFIX + studyId + "_" + cohortId + OPR_SUFFIX, PFloat.INSTANCE);
+    }
+
+    public void updateStatsColumns(Connection con, String tableName, StudyConfiguration studyConfiguration) throws SQLException {
+        List<PhoenixHelper.Column> columns = studyConfiguration.getCohortIds().values().stream()
+                .flatMap(cohortid -> getStatsColumns(studyConfiguration.getStudyId(), cohortid).stream())
+                .collect(Collectors.toList());
+        helper.getPhoenixHelper().addMissingColumns(con, tableName, columns, true);
+    }
+
+    private Collection<PhoenixHelper.Column> getStatsColumns(int studyId, Integer cohortId) {
+        return Collections.singletonList(getOprColumn(studyId, cohortId));
     }
 }
