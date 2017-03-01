@@ -19,7 +19,7 @@ import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import java.io.IOException;
 import java.util.*;
 
-import static diva.genome.analysis.mr.NonsenseDriver.*;
+import static diva.genome.analysis.mr.GenomeAnalysisDriver.*;
 import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALYSIS_EXPORT_COHORTS;
 
 /**
@@ -56,10 +56,12 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         String ctlCohort = context.getConfiguration().get(CONFIG_ANALYSIS_ASSOC_CTL, "");
         getLog().info("Use {} as control cohort ", ctlCohort);
 
-        float ctlMaf = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF, 0.0001F);
-        getLog().info("Use {} as Control MAF cutoff ", ctlMaf);
+        float ctlMafAuto = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF_AUTO, 0.0001F);
+        getLog().info("Use {} as Control MAF AUTO cutoff ", ctlMafAuto);
+        float ctlMafX = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF_X, 0.000125F);
+        getLog().info("Use {} as Control MAF X cutoff ", ctlMafX);
         float opr = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_OPR, 0.95F);
-        getLog().info("Use {} as OPR cutoff ", ctlMaf);
+        getLog().info("Use {} as OPR cutoff ", opr);
 
         Float caddScore = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_COMBINED_CADD, 15);
 
@@ -85,7 +87,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         converter.setParseStatistics(true);
         converter.setCohortWhiteList(this.exportCohort);
         hBaseAlleleCountsToAllelesConverter = converter;
-        this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, ctlMaf, opr, caddScore);
+        this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, ctlMafAuto, ctlMafX, opr, caddScore);
     }
 
     @Override

@@ -2,6 +2,7 @@ package diva.genome.analysis.mr;
 
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.AbstractAlleleDriver;
+import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
 import org.apache.avro.Schema;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
@@ -13,6 +14,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
@@ -24,28 +26,35 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.phoenix.schema.types.PFloat;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
+import org.opencb.opencga.storage.hadoop.variant.index.phoenix.PhoenixHelper;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Created by mh719 on 27/02/2017.
  */
-public class NonsenseDriver extends AbstractAlleleDriver {
+public class GenomeAnalysisDriver extends AbstractAlleleDriver {
     public static final String CONFIG_ANALYSIS_EXPORT_AVRO_PATH = "diva.genome.analysis.models.avro.file";
     public static final String CONFIG_ANALYSIS_MR_ANALYSISTYPE = "diva.genome.analysis.mr.analysis.type";
     public static final String CONFIG_ANALYSIS_ASSOC_CASES = "diva.genome.analysis.association.cases";
     public static final String CONFIG_ANALYSIS_ASSOC_CTL = "diva.genome.analysis.association.controls";
-    public static final String CONFIG_ANALYSIS_FILTER_CTL_MAF = "diva.genome.analysis.filter.ctrl.maf";
+    public static final String CONFIG_ANALYSIS_PREFILTER_CTL_MAF = "diva.genome.analysis.prefilter.ctrl.maf";
+    public static final String CONFIG_ANALYSIS_FILTER_CTL_MAF_AUTO = "diva.genome.analysis.filter.ctrl.maf.auto";
+    public static final String CONFIG_ANALYSIS_FILTER_CTL_MAF_X = "diva.genome.analysis.filter.ctrl.maf.X";
     public static final String CONFIG_ANALYSIS_FILTER_OPR = "diva.genome.analysis.filter.opr";
+    public static final String CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS = "diva.genome.analysis.prefilter.opr.cohorts";
     public static final String CONFIG_ANALYSIS_FILTER_COMBINED_CADD = "diva.genome.analysis.analysis.combined.cadd";
 
     private Path outAvroFile;
 
-    public NonsenseDriver() { /* nothing */ }
+    public GenomeAnalysisDriver() { /* nothing */ }
 
-    public NonsenseDriver(Configuration conf) {
+    public GenomeAnalysisDriver(Configuration conf) {
         super(conf);
     }
 
@@ -61,8 +70,10 @@ public class NonsenseDriver extends AbstractAlleleDriver {
         }
         assertConfigExist(CONFIG_ANALYSIS_ASSOC_CASES);
         assertConfigExist(CONFIG_ANALYSIS_ASSOC_CTL);
-        assertConfigExist(CONFIG_ANALYSIS_FILTER_CTL_MAF);
+        assertConfigExist(CONFIG_ANALYSIS_FILTER_CTL_MAF_AUTO);
+        assertConfigExist(CONFIG_ANALYSIS_FILTER_CTL_MAF_X);
         assertConfigExist(CONFIG_ANALYSIS_MR_ANALYSISTYPE);
+        assertConfigExist(CONFIG_ANALYSIS_FILTER_OPR);
         outAvroFile = new Path(file);
     }
 
@@ -106,16 +117,23 @@ public class NonsenseDriver extends AbstractAlleleDriver {
 
     @Override
     protected Scan createScan() {
+        Set<String> oprCohorts = new HashSet<>();
+        if (null != getConf().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS)){
+            oprCohorts.addAll(Arrays.asList(getConf().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS)));
+        }
         String ctlCohort = getConf().get(CONFIG_ANALYSIS_ASSOC_CTL);
-        float mafCutoff = getConf().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF, -1);
+        float mafCutoff = getConf().getFloat(CONFIG_ANALYSIS_PREFILTER_CTL_MAF,
+                Math.max(getConf().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF_AUTO, -1),
+                        getConf().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF_X, -1)));
         if (mafCutoff < 0 || mafCutoff > 1) {
             throw new OutOfRangeException(mafCutoff, 0, 1);
         }
         int studyId = getHelper().getStudyId();
         try {
-            Scan scan = super.createScan();
+            FilterList filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL);
             StudyConfiguration sc = getHelper().loadMeta();
             Integer cohortId = sc.getCohortIds().get(ctlCohort);
+            /* MAF filter */
             byte[] mafColumn = VariantPhoenixHelper.getMafColumn(studyId, cohortId).bytes();
             SingleColumnValueFilter mafCtlFilter = new SingleColumnValueFilter(
                     getHelper().getColumnFamily(),
@@ -124,9 +142,28 @@ public class NonsenseDriver extends AbstractAlleleDriver {
                     PFloat.INSTANCE.toBytes(mafCutoff));
             mafCtlFilter.setFilterIfMissing(false);
             mafCtlFilter.setLatestVersionOnly(true);
-
             getLog().info("Register MAF filter {} on column {} ", mafCutoff, Bytes.toString(mafColumn));
-            scan.setFilter(mafCtlFilter);
+
+            filterList.addFilter(mafCtlFilter);
+
+            float oprCutoff = getConf().getFloat(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS, 1);
+            /* OPR filter */
+            for (String cohort : oprCohorts) {
+                Integer oprCohortId = sc.getCohortIds().get(cohort);
+                PhoenixHelper.Column column = AlleleTablePhoenixHelper.getOprColumn(studyId, oprCohortId);
+                SingleColumnValueFilter oprFilter = new SingleColumnValueFilter(
+                        getHelper().getColumnFamily(),
+                        column.bytes(),
+                        CompareFilter.CompareOp.GREATER_OR_EQUAL,
+                        PFloat.INSTANCE.toBytes(oprCutoff));
+                oprFilter.setFilterIfMissing(false);
+                oprFilter.setLatestVersionOnly(true);
+                getLog().info("Register OPR filter {} on column {} ", oprCutoff, column.column());
+                filterList.addFilter(oprFilter);
+            }
+
+            Scan scan = super.createScan();
+            scan.setFilter(filterList);
             return scan;
         } catch (IOException e) {
             throw new IllegalStateException(e);
@@ -152,7 +189,7 @@ public class NonsenseDriver extends AbstractAlleleDriver {
 
     public static void main(String[] args) throws Exception {
         try {
-            System.exit(privateMain(args, null, new NonsenseDriver()));
+            System.exit(privateMain(args, null, new GenomeAnalysisDriver()));
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

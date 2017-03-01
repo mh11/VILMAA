@@ -4,23 +4,23 @@ import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.alleles.avro.VariantStats;
 
 import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
 /**
  * Created by mh719 on 25/02/2017.
  */
 public class AlleleFrequencyBelowFilter extends AbstractFilter<AllelesAvro> {
     private final String controlCohort;
-    private final Float freqExclusive;
+    private final Float freqAuto;
+    private final Float freqX;
 
-    public AlleleFrequencyBelowFilter(String controlCohort, Float freqExclusive) {
+    public AlleleFrequencyBelowFilter(String controlCohort, Float freqAuto, Float freqX) {
         this.controlCohort = controlCohort;
-        this.freqExclusive = freqExclusive;
+        this.freqAuto = freqAuto;
+        this.freqX = freqX;
     }
 
-    private boolean isRareControl(Map<String, VariantStats> stats) {
-        return stats.get(controlCohort).getMaf() < freqExclusive;
+    private boolean isRareControl(Map<String, VariantStats> stats, Float cutoff) {
+        return stats.get(controlCohort).getMaf() < cutoff;
     }
     @Override
     public Boolean doTest(AllelesAvro allelesAvro) {
@@ -28,7 +28,17 @@ public class AlleleFrequencyBelowFilter extends AbstractFilter<AllelesAvro> {
         if (null == stats || stats.isEmpty()) {
             return false;
         }
-        return isRareControl(stats);
+        return isRareControl(stats, getCutoff(allelesAvro.getChromosome()));
+    }
+
+    private Float getCutoff(String chromosome) {
+        switch (chromosome) {
+            case "X":
+            case "chrX":
+                return this.freqX;
+            default:
+                return this.freqAuto;
+        }
     }
 
 }

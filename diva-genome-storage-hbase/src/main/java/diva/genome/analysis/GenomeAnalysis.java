@@ -63,11 +63,11 @@ public class GenomeAnalysis {
         return stream.map(c -> new ImmutablePair<>(c.getEnsemblGeneId(), c.getEnsemblTranscriptId())).collect(Collectors.toSet());
     }
 
-    public static GenomeAnalysis buildAnalysis(String type, String casesCohort, String controlCohort, Float ctlMaf, Float opr, Float cadd){
-        LOG.info("Build {} analysis for cases {} and ctl {} with ctlMAF of {} ...", type, casesCohort, controlCohort, ctlMaf);
+    public static GenomeAnalysis buildAnalysis(String type, String casesCohort, String controlCohort, Float ctlMafAuto, Float ctlMafX, Float opr, Float cadd){
+        LOG.info("Build {} analysis for cases {} and ctl {} with ctlMAF of {} AUTO and {} of X ...", type, casesCohort, controlCohort, ctlMafAuto, ctlMafX);
         GenomeAnalysis analysis = new GenomeAnalysis(type);
         analysis.registerFilter("OPR", new OverallPassRateFilter(opr));
-        analysis.registerFilter("CTL-FREQ", new AlleleFrequencyBelowFilter(controlCohort, ctlMaf));
+        analysis.registerFilter("CTL-FREQ", new AlleleFrequencyBelowFilter(controlCohort, ctlMafAuto, ctlMafX));
         analysis.registerFilter("protein_coding", (a) -> a.getBioTypes().stream().anyMatch(s -> StringUtils.equals(s, BIOTYPE_PROTEIN_CODING)));
         switch (type) {
             case "nonsense":

@@ -27,12 +27,12 @@ import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTab
 /**
  * Created by mh719 on 28/02/2017.
  */
-public class GenomeSummaryRunner extends NonsenseDriver {
+public class GenomeAnalysisRunner extends GenomeAnalysisDriver {
 
 
     public static void main(String[] args) throws Exception {
         try {
-            System.exit(privateMain(args, null, new GenomeSummaryRunner()));
+            System.exit(privateMain(args, null, new GenomeAnalysisRunner()));
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
