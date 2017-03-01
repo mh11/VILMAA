@@ -10,7 +10,9 @@ import org.opencb.biodata.models.variant.stats.VariantStats;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
 import static htsjdk.variant.variantcontext.Allele.NO_CALL_STRING;
@@ -45,10 +47,17 @@ public class AlleleStatsCalculator {
     }
 
     public VariantStats calculateStats(AlleleCountPosition position, Set<Integer> samples, Variant variant) {
+        return calculateStats(position, samples, variant, null);
+    }
+
+    public VariantStats calculateStats(AlleleCountPosition position, Set<Integer> samples, Variant variant, Consumer<AlleleCountPosition> checkFilteredObject) {
         allExist(samples);
         AlleleCountPosition currAllele = new AlleleCountPosition(position, samples);
         Set<Integer> remaining = new HashSet<>(samples);
         validRefAlleles(currAllele);
+        if (null != checkFilteredObject) {
+            checkFilteredObject.accept(currAllele);
+        }
         HashMap<Integer, List<Integer>> refMap = new HashMap<>(currAllele.getReference());
         refMap.remove(NO_CALL);
         if (!(variant.getType().equals(VariantType.INDEL) && variant.getStart() > variant.getEnd())) {

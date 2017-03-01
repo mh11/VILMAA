@@ -233,7 +233,7 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
         return variant;
     }
 
-    protected Map<String, String> calculatePassCallRates(AlleleCountPosition row, int loadedSamplesSize) {
+    public static Map<String, String> calculatePassCallRates(AlleleCountPosition row, int loadedSamplesSize) {
         Map<String, String> attributesMap = new HashMap<>();
         Integer noCall = 0;
         if (null != row.getReference().get(NO_CALL)) {

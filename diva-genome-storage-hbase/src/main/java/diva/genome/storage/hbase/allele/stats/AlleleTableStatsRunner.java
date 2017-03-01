@@ -1,4 +1,4 @@
-package diva.genome.analysis.mr;
+package diva.genome.storage.hbase.allele.stats;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -10,7 +10,6 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.io.RawComparator;
-import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.security.Credentials;
 import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
@@ -25,14 +24,14 @@ import java.util.Map;
 import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.CONFIG_VARIANT_TABLE_NAME;
 
 /**
- * Created by mh719 on 28/02/2017.
+ * Created by mh719 on 01/03/2017.
  */
-public class GenomeSummaryRunner extends NonsenseDriver {
+public class AlleleTableStatsRunner extends AlleleTableStatsDriver {
 
 
     public static void main(String[] args) throws Exception {
         try {
-            System.exit(privateMain(args, null, new GenomeSummaryRunner()));
+            System.exit(privateMain(args, null, new AlleleTableStatsRunner()));
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -40,20 +39,14 @@ public class GenomeSummaryRunner extends NonsenseDriver {
     }
 
     @Override
-    public int run(String[] args) throws Exception {
-        return super.run(args);
-    }
-
-    @Override
     protected boolean executeJob(Job job) throws IOException, InterruptedException, ClassNotFoundException {
-        // run local
-        MyTestMapper tm = new MyTestMapper();
-        MyTestMapper.MyContext context = tm.createContext(getConf());
-        tm.setup(context);
+        MyMapper myMapper = new MyMapper();
+        MyMapper.MyContext context = myMapper.createContext(getConf());
+        myMapper.setup(context);
 
-        VariantTableHelper helper = getHelper();
         Scan scan = createScan();
         String variantTable = getConf().get(CONFIG_VARIANT_TABLE_NAME, StringUtils.EMPTY);
+        VariantTableHelper helper = getHelper();
         try {
             helper.getHBaseManager().act(variantTable, c -> {
                 try {
@@ -64,11 +57,11 @@ public class GenomeSummaryRunner extends NonsenseDriver {
                             getLog().info("Processed {} variants and {} submitted ...", iCnt, context.submitted.size());
                             context.printCounts();
                         }
-                        tm.map(new ImmutableBytesWritable(result.getRow()), result, context);
+                        myMapper.map(new ImmutableBytesWritable(result.getRow()), result, context);
                         ++iCnt;
                     }
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                   throw new IllegalStateException(e);
                 }
             });
         } catch (IOException e) {
@@ -77,7 +70,9 @@ public class GenomeSummaryRunner extends NonsenseDriver {
         return true;
     }
 
-    public static class MyTestMapper extends GeneSummaryMapper {
+
+
+    public static class MyMapper extends AlleleStatsMapper {
         private Map<String, Counter> counterMap = new HashMap<>();
 
         public MyContext createContext(Configuration conf) {
@@ -95,6 +90,7 @@ public class GenomeSummaryRunner extends NonsenseDriver {
             public void printCounts() {
                 counterMap.forEach((k, v) -> getLog().info("... {} -> {}", k, v.getValue()));
             }
+
 
             @Override
             public InputSplit getInputSplit() {
@@ -148,12 +144,12 @@ public class GenomeSummaryRunner extends NonsenseDriver {
 
             @Override
             public Counter getCounter(Enum<?> anEnum) {
-                return counterMap.computeIfAbsent(anEnum.toString(), (x) -> new Counters.Counter());
+                return counterMap.computeIfAbsent(anEnum.toString(), (x) -> new org.apache.hadoop.mapred.Counters.Counter());
             }
 
             @Override
             public Counter getCounter(String s, String s1) {
-                return counterMap.computeIfAbsent(s + "_" + s1, (x) -> new Counters.Counter());
+                return counterMap.computeIfAbsent(s + "_" + s1, (x) -> new org.apache.hadoop.mapred.Counters.Counter());
             }
 
             @Override
@@ -346,5 +342,6 @@ public class GenomeSummaryRunner extends NonsenseDriver {
 
             }
         }
+
     }
 }

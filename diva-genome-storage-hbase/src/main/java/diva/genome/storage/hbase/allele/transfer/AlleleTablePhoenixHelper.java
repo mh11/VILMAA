@@ -4,6 +4,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.phoenix.schema.PTable;
 import org.apache.phoenix.schema.types.PDataType;
+import org.apache.phoenix.schema.types.PFloat;
 import org.apache.phoenix.schema.types.PUnsignedInt;
 import org.apache.phoenix.schema.types.PUnsignedIntArray;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
@@ -18,6 +19,7 @@ import java.util.List;
 import static diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter.*;
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.DEL_SYMBOL;
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.INS_SYMBOL;
+import static org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper.STATS_PREFIX;
 import static org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper.VariantColumn.*;
 
 /**
@@ -25,6 +27,7 @@ import static org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPho
  */
 public class AlleleTablePhoenixHelper {
 
+    private static final String OPR_SUFFIX = "_OPR";
     private final VariantPhoenixHelper helper;
 
     public AlleleTablePhoenixHelper(GenomeHelper genomeHelper) {
@@ -93,5 +96,9 @@ public class AlleleTablePhoenixHelper {
                 new PhoenixHelper.Index(table, PTable.IndexType.LOCAL, Arrays.asList("\"" + SIFT + "\"[2]"), defaultInclude),
                 new PhoenixHelper.Index(table, PTable.IndexType.LOCAL, Arrays.asList(TYPE), defaultInclude)
         );
+    }
+
+    public static PhoenixHelper.Column getOprColumn(int studyId, int cohortId) {
+        return PhoenixHelper.Column.build(STATS_PREFIX + studyId + "_" + cohortId + OPR_SUFFIX, PFloat.INSTANCE);
     }
 }

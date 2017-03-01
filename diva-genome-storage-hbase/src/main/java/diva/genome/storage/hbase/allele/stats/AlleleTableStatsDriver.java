@@ -1,4 +1,4 @@
-package diva.genome.storage.hbase.allele;
+package diva.genome.storage.hbase.allele.stats;
 
 import com.google.common.collect.BiMap;
 import org.apache.hadoop.conf.Configuration;
@@ -11,7 +11,6 @@ import org.opencb.commons.datastore.core.QueryOptions;
 import org.opencb.opencga.storage.core.exceptions.StorageEngineException;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.AbstractAnalysisTableDriver;
-import diva.genome.storage.hbase.allele.stats.AlleleStatsMapper;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper;
 
 import java.io.IOException;
@@ -23,6 +22,10 @@ import java.util.Collections;
  * Created by mh719 on 01/02/2017.
  */
 public class AlleleTableStatsDriver extends AbstractAnalysisTableDriver {
+
+    public static final String CONFIG_STORAGE_STATS_COHORTS = "diva.genome.storage.hbase.allele.stats.cohorts";;
+    public static final String CONFIG_STORAGE_STATS_OPR = "diva.genome.storage.hbase.allele.stats.opr";;
+    public static final String CONFIG_STORAGE_STATS_CALC = "diva.genome.storage.hbase.allele.stats.CALC";;
 
 
     public AlleleTableStatsDriver() { /* nothing */ }
