@@ -60,6 +60,10 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         getLog().info("Use {} as Control MAF AUTO cutoff ", ctlMafAuto);
         float ctlMafX = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF_X, 0.000125F);
         getLog().info("Use {} as Control MAF X cutoff ", ctlMafX);
+        float popFreq = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_POP_AF, 0.0001F);
+        getLog().info("Use {} as Population AF cutoff ", popFreq);
+
+
         float opr = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_OPR, 0.95F);
         getLog().info("Use {} as OPR cutoff ", opr);
 
@@ -87,7 +91,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         converter.setParseStatistics(true);
         converter.setCohortWhiteList(this.exportCohort);
         hBaseAlleleCountsToAllelesConverter = converter;
-        this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, ctlMafAuto, ctlMafX, opr, caddScore);
+        this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, popFreq, ctlMafAuto, ctlMafX, opr, caddScore);
     }
 
     @Override

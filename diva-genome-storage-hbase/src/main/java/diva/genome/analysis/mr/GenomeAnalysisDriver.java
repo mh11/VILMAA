@@ -44,6 +44,7 @@ public class GenomeAnalysisDriver extends AbstractAlleleDriver {
     public static final String CONFIG_ANALYSIS_ASSOC_CASES = "diva.genome.analysis.association.cases";
     public static final String CONFIG_ANALYSIS_ASSOC_CTL = "diva.genome.analysis.association.controls";
     public static final String CONFIG_ANALYSIS_PREFILTER_CTL_MAF = "diva.genome.analysis.prefilter.ctrl.maf";
+    public static final String CONFIG_ANALYSIS_FILTER_POP_AF = "diva.genome.analysis.filter.pop.af";
     public static final String CONFIG_ANALYSIS_FILTER_CTL_MAF_AUTO = "diva.genome.analysis.filter.ctrl.maf.auto";
     public static final String CONFIG_ANALYSIS_FILTER_CTL_MAF_X = "diva.genome.analysis.filter.ctrl.maf.X";
     public static final String CONFIG_ANALYSIS_FILTER_OPR = "diva.genome.analysis.filter.opr";
@@ -74,6 +75,7 @@ public class GenomeAnalysisDriver extends AbstractAlleleDriver {
         assertConfigExist(CONFIG_ANALYSIS_FILTER_CTL_MAF_X);
         assertConfigExist(CONFIG_ANALYSIS_MR_ANALYSISTYPE);
         assertConfigExist(CONFIG_ANALYSIS_FILTER_OPR);
+        assertConfigExist(CONFIG_ANALYSIS_FILTER_POP_AF);
         outAvroFile = new Path(file);
     }
 
