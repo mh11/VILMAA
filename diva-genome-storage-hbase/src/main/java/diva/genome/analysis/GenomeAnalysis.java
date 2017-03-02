@@ -1,9 +1,6 @@
 package diva.genome.analysis;
 
-import diva.genome.analysis.filter.AlleleFrequencyBelowFilter;
-import diva.genome.analysis.filter.BenignFilter;
-import diva.genome.analysis.filter.OverallPassRateFilter;
-import diva.genome.analysis.filter.VariantConsequence;
+import diva.genome.analysis.filter.*;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -63,12 +60,16 @@ public class GenomeAnalysis {
         return stream.map(c -> new ImmutablePair<>(c.getEnsemblGeneId(), c.getEnsemblTranscriptId())).collect(Collectors.toSet());
     }
 
-    public static GenomeAnalysis buildAnalysis(String type, String casesCohort, String controlCohort, Float ctlMafAuto, Float ctlMafX, Float opr, Float cadd){
+    public static GenomeAnalysis buildAnalysis(String type, String casesCohort, String controlCohort, Float popFrequ, Float ctlMafAuto, Float ctlMafX, Float opr, Float cadd){
         LOG.info("Build {} analysis for cases {} and ctl {} with ctlMAF of {} AUTO and {} of X ...", type, casesCohort, controlCohort, ctlMafAuto, ctlMafX);
         GenomeAnalysis analysis = new GenomeAnalysis(type);
         analysis.registerFilter("OPR", new OverallPassRateFilter(opr));
         analysis.registerFilter("CTL-FREQ", new AlleleFrequencyBelowFilter(controlCohort, ctlMafAuto, ctlMafX));
         analysis.registerFilter("protein_coding", (a) -> a.getBioTypes().stream().anyMatch(s -> StringUtils.equals(s, BIOTYPE_PROTEIN_CODING)));
+        analysis.registerFilter("ExAC-ALL", new PopulationAlleleFrequencyFilter(popFrequ, "EXAC", "ALL"));
+        analysis.registerFilter("UK10K_TWINSUK", new PopulationAlleleFrequencyFilter(popFrequ, "UK10K_TWINSUK", "ALL"));
+        analysis.registerFilter("UK10K_ALSPAC", new PopulationAlleleFrequencyFilter(popFrequ, "UK10K_ALSPAC", "ALL"));
+        analysis.registerFilter("1kG_phase3", new PopulationAlleleFrequencyFilter(popFrequ, "1kG_phase3", "ALL"));
         switch (type) {
             case "nonsense":
                 addNonsenseOptions(analysis);
