@@ -6,10 +6,12 @@ import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllel
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.samples.avro.SampleCollection;
 import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
+import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -20,6 +22,7 @@ import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -36,6 +39,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     private Set<String> exportCohort;
     private Set<Integer> returnedSampleIds;
     private AvroParquetWriter<AllelesAvro> parquetWriter;
+    private DataFileWriter dataFileWriter;
 
     @Override
     protected void map(Result result) throws IOException {
@@ -51,7 +55,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         prepareSampleFile();
         prepareConverter();
         try {
-            prepareParquetWriter(() -> super.map(scan, variantTable));
+            prepareAvroWriter(() -> super.map(scan, variantTable));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -122,17 +126,17 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
         }
     }
 
-//    protected void prepareAvroWriter(Runnable runnable) throws IOException {
-//        File outputFile = getOutputFile();
-//        this.dataFileWriter = new DataFileWriter<>(
-//                new SpecificDatumWriter<>(AllelesAvro.class));
-//        try {
-//            dataFileWriter.create(AllelesAvro.SCHEMA$, outputFile);
-//            runnable.run();
-//        } finally {
-//            dataFileWriter.close();
-//        }
-//    }
+    protected void prepareAvroWriter(Runnable runnable) throws IOException {
+        Path outputFile = getOutputFile();
+        this.dataFileWriter = new DataFileWriter<>(
+                new SpecificDatumWriter<>(AllelesAvro.class));
+        try {
+            dataFileWriter.create(AllelesAvro.SCHEMA$, new File(outputFile.toString()));
+            runnable.run();
+        } finally {
+            dataFileWriter.close();
+        }
+    }
 
     private Path getOutputFile() {
         return checkFile(getConf().get(OUTPUT_FILE, StringUtils.EMPTY));
