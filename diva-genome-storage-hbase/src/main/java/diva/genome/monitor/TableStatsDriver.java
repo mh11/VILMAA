@@ -11,7 +11,6 @@ import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
@@ -24,7 +23,7 @@ import java.io.IOException;
 public class TableStatsDriver extends Configured implements Tool {
 
 
-    public static class TableStatsMapper extends TableMapper<ImmutableBytesWritable, ImmutableBytesWritable> {
+    public static class TableStatsMapper extends TableMapper<ImmutableBytesWritable, Result> {
 
         @Override
         protected void map(ImmutableBytesWritable key, Result value, Context context) throws IOException,
@@ -48,10 +47,13 @@ public class TableStatsDriver extends Configured implements Tool {
                 table,      // input table
                 scan,             // Scan instance to control CF and attribute selection
                 TableStatsMapper.class,   // mapper class
-                null,             // mapper output key
-                null,             // mapper output value
+                ImmutableBytesWritable.class,             // mapper output key
+                Result.class,             // mapper output value
                 job,
                 true);
+        job.setOutputFormatClass(NullOutputFormatormat.class);
+        job.setNumReduceTasks(0);
+
         boolean succeed = job.waitForCompletion(true);
         System.err.println("Job finished with " + succeed);
         return succeed ? 0 : 1;
