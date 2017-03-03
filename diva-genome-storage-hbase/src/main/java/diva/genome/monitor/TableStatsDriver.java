@@ -11,6 +11,7 @@ import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
@@ -51,7 +52,7 @@ public class TableStatsDriver extends Configured implements Tool {
                 Result.class,             // mapper output value
                 job,
                 true);
-        job.setOutputFormatClass(NullOutputFormatormat.class);
+        job.setOutputFormatClass(NullOutputFormat.class);
         job.setNumReduceTasks(0);
 
         boolean succeed = job.waitForCompletion(true);
