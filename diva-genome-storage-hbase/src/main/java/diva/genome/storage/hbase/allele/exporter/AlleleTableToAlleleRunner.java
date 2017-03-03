@@ -45,8 +45,8 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     protected void map(Result result) throws IOException {
         AllelesAvro.Builder builder = this.hBaseAlleleCountsToAllelesConverter.convert(result);
         AllelesAvro avro = builder.build();
-//        this.dataFileWriter.append(avro);
-        this.parquetWriter.write(avro);
+        this.dataFileWriter.append(avro);
+//        this.parquetWriter.write(avro);
     }
 
     @Override
