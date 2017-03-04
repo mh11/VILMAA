@@ -65,7 +65,7 @@ public class TableStatsDriver extends Configured implements Tool {
                             nocall.addAll(HBaseToAlleleCountConverter.getValueAsList(CellUtil.cloneValue(cell)));
                             break;
                         case FILTER_FAIL:
-                            nocall.addAll(HBaseToAlleleCountConverter.getValueAsList(CellUtil.cloneValue(cell)));
+                            failed.addAll(HBaseToAlleleCountConverter.getValueAsList(CellUtil.cloneValue(cell)));
                             break;
                     }
                 }
