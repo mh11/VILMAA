@@ -37,6 +37,7 @@ public class VariantSliceMRTestHelper {
 
     private StudyConfiguration studyConfiguration;
     private LinkedHashSet<Integer> lastBatchFiles = new LinkedHashSet<>();
+    private List<byte[]> loadedSlices = new ArrayList<>();
     private VariantTableHelper gh;
     private String chromosome;
     private Integer position;
@@ -84,7 +85,9 @@ public class VariantSliceMRTestHelper {
             targetIds.add(fid);
             try ( InputStream in = new GZIPInputStream(new FileInputStream(file));
                   InputStream inconf = new GZIPInputStream(new FileInputStream(confFile)); ) {
-                VcfSliceProtos.VcfSlice vcfSlice = VcfSliceProtos.VcfSlice.parseFrom(in);
+                byte[] bytes = IOUtils.toByteArray(in);
+                this.loadedSlices.add(bytes);
+                VcfSliceProtos.VcfSlice vcfSlice = VcfSliceProtos.VcfSlice.parseFrom(bytes);
                 chrSet.add(vcfSlice.getChromosome());
                 posSet.add(vcfSlice.getPosition());
                 KeyValue keyValue = new KeyValue(gh.generateVariantRowKey(vcfSlice.getChromosome(), vcfSlice
@@ -130,9 +133,7 @@ public class VariantSliceMRTestHelper {
         Arrays.stream(this.directory.listFiles(f -> StringUtils.endsWith(f.getName(), "variants.proto.gz"))).forEach(file -> {
             File confFile = new File(file.getAbsolutePath().replace("vcf.gz.variants.proto.gz", "vcf.gz.file.json.gz"));
             Integer fid = Integer.valueOf(confFile.getName().replace(".vcf.gz.file.json.gz", ""));
-            try ( InputStream in = new GZIPInputStream(new FileInputStream(file));
-                  InputStream inconf = new GZIPInputStream(new FileInputStream(confFile)); ) {
-                VcfSliceProtos.VcfSlice vcfSlice = VcfSliceProtos.VcfSlice.parseFrom(in);
+            try (InputStream inconf = new GZIPInputStream(new FileInputStream(confFile)); ) {
                 byte[] confArr = IOUtils.toByteArray(inconf);
                 VariantSource vs = objectMapper.readValue(confArr, VariantSource.class);
                 vs.setStudyId(studyConfiguration.getStudyId() + "");
@@ -239,4 +240,7 @@ public class VariantSliceMRTestHelper {
         return studyConfiguration;
     }
 
+    public List<byte[]> getLoadedSlices() {
+        return this.loadedSlices;
+    }
 }

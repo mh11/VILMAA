@@ -71,7 +71,7 @@ public class HBaseToAlleleCountConverter {
         }
     }
 
-    private List<Integer> getValueAsList(byte[] bytes) throws SQLException {
+    public static List<Integer> getValueAsList(byte[] bytes) throws SQLException {
         Array abc = (Array) PUnsignedIntArray.INSTANCE.toObject(bytes);
         int[] coll = null;
         if (null != abc) {
