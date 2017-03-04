@@ -21,6 +21,7 @@ import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import java.io.IOException;
 import java.util.HashSet;
 
+import static diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter.FILTER_FAIL_CHAR;
 import static diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter.FILTER_PASS_CHAR;
 
 /**
@@ -40,7 +41,7 @@ public class TableStatsDriver extends Configured implements Tool {
 
     public static class TableStatsNoCallMapper extends TableMapper<ImmutableBytesWritable, Result> {
         public static final String NO_CALL = HBaseToAlleleCountConverter.REFERENCE_PREFIX_CHAR + "-1";
-        public static final String FILTER_FAIL = FILTER_PASS_CHAR + "";
+        public static final String FILTER_FAIL = FILTER_FAIL_CHAR + "";
         private HashSet failed;
         private HashSet nocall;
 
