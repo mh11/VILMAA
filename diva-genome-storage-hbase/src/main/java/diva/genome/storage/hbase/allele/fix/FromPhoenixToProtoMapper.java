@@ -3,6 +3,8 @@ package diva.genome.storage.hbase.allele.fix;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter;
 import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseAppendGroupedConverter;
+import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseCompactConverter;
+import diva.genome.storage.hbase.allele.count.converter.GroupedAlleleCountToHBaseAppendConverter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hbase.client.Append;
@@ -22,13 +24,15 @@ import java.util.stream.Collectors;
  * Created by mh719 on 09/02/2017.
  */
 public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
+    private static final byte[] REF_COLUMN = {1};
+    private static final byte[] ALT_COLUMN = {2};
     private byte[] studiesRow;
     protected HBaseToAlleleCountConverter converter;
-    private AlleleCountToHBaseAppendGroupedConverter groupedConverter;
+    private GroupedAlleleCountToHBaseAppendConverter groupedConverter;
 
     protected volatile List<Pair<Variant, Result>> positionBuffer = new ArrayList<>();
 
-    public void setGroupedConverter(AlleleCountToHBaseAppendGroupedConverter groupedConverter) {
+    public void setGroupedConverter(GroupedAlleleCountToHBaseAppendConverter groupedConverter) {
         this.groupedConverter = groupedConverter;
     }
 
@@ -41,7 +45,9 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
         super.setup(context);
         this.studiesRow = this.getHelper().generateVariantRowKey("_METADATA", 0);
         converter = new HBaseToAlleleCountConverter();
-        groupedConverter = new AlleleCountToHBaseAppendGroupedConverter(getHelper().getColumnFamily());
+//        groupedConverter = new AlleleCountToHBaseAppendGroupedConverter(getHelper().getColumnFamily());
+        byte[] columnFamily = getHelper().getColumnFamily();
+        groupedConverter = new AlleleCountToHBaseCompactConverter(columnFamily, REF_COLUMN, ALT_COLUMN);
     }
 
     @Override
@@ -70,7 +76,6 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
 
         try {
             while (context.nextKeyValue()) {
-                ImmutableBytesWritable currentKey = context.getCurrentKey();
                 Result result = context.getCurrentValue();
                 context.getCounter("OPENCGA", "Found ...").increment(1);
                 if (isMetaRow(result.getRow())) {
@@ -78,14 +83,14 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
                     continue;
                 }
                 Variant variant = getHelper().extractVariantFromVariantRowKey(result.getRow());
-                int nextPos = groupedConverter.calcPosition(variant.getStart());
+                int nextPos = groupedConverter.calculateGroupPosition(variant.getStart());
                 if (referencePosition != nextPos) {
                     context.getCounter("OPENCGA", "FLUSH").increment(1);
                     getLog().info("Flush buffer for " + referencePosition + " before adding " + variant);
                     flushBuffer(chromosome, submitFunction);
                 }
                 chromosome = variant.getChromosome();
-                referencePosition = groupedConverter.calcPosition(variant.getStart());
+                referencePosition = groupedConverter.calculateGroupPosition(variant.getStart());
                 context.getCounter("OPENCGA", "add-to-buffer").increment(1);
                 addToBuffer(new ImmutablePair<>(variant, result));
             }

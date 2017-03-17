@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Created by mh719 on 08/02/2017.
  */
-public class AlleleCountToHBaseAppendGroupedConverter implements AlleleCountToHBaseAppendConverter {
+public class AlleleCountToHBaseAppendGroupedConverter implements GroupedAlleleCountToHBaseAppendConverter {
 
     public static final char PREFIX_REFERENCE = 'Y';
     public static final char PREFIX_VARIANT = 'Z';
@@ -22,11 +22,13 @@ public class AlleleCountToHBaseAppendGroupedConverter implements AlleleCountToHB
     private String varPrefix;
     private final byte[] columnFamily;
     AlleleCountPositionToAlleleCountHBaseProto protoConverter = new AlleleCountPositionToAlleleCountHBaseProto();
+    private int factor;
 
     public AlleleCountToHBaseAppendGroupedConverter(byte[] columnFamily) {
         this.columnFamily = columnFamily;
         this.refPrefix = PREFIX_REFERENCE + "";
         this.varPrefix = PREFIX_VARIANT + "";
+        this.factor = 100;
     }
 
     public byte[] getColumnFamily() {
@@ -38,8 +40,8 @@ public class AlleleCountToHBaseAppendGroupedConverter implements AlleleCountToHB
         Map<Integer, Map<Integer, AlleleCountPosition>> regionMap = new HashMap<>();
         Map<Integer, Map<Integer, Map<String, AlleleCountPosition>>> regionVarMap = new HashMap<>();
         // group by position
-        referenceMap.forEach((k, v) -> regionMap.computeIfAbsent(calcPosition(k), x -> new HashMap<>()).put(calcRemaining(k), v));
-        variantMap.forEach((k, v) -> regionVarMap.computeIfAbsent(calcPosition(k), x -> new HashMap<>()).put(calcRemaining(k), v));
+        referenceMap.forEach((k, v) -> regionMap.computeIfAbsent(calculateGroupPosition(k), x -> new HashMap<>()).put(calcRemaining(k), v));
+        variantMap.forEach((k, v) -> regionVarMap.computeIfAbsent(calculateGroupPosition(k), x -> new HashMap<>()).put(calcRemaining(k), v));
 
         Set<Integer> allPositions = new HashSet<>();
         allPositions.addAll(regionMap.keySet());
@@ -113,15 +115,15 @@ public class AlleleCountToHBaseAppendGroupedConverter implements AlleleCountToHB
 
 
     public Integer calcRemaining(Integer k) {
-        int i = k % 10;
-        if (i > 9 || i < 0) {
-            throw new OutOfRangeException(i, 0, 9);
+        int i = k % this.factor;
+        if (i >= this.factor || i < 0) {
+            throw new OutOfRangeException(i, 0, this.factor - 1);
         }
         return i;
     }
 
-    public int calcPosition(Integer k) {
-        return k/10;
+    @Override
+    public Integer calculateGroupPosition(Integer position) {
+        return position / factor;
     }
-
 }

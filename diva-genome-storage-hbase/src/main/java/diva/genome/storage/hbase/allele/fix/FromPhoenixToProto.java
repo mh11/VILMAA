@@ -7,18 +7,21 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.io.compress.Compression;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.ToolRunner;
+import org.opencb.opencga.storage.hadoop.utils.HBaseManager;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
+import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver
+        .CONFIG_VARIANT_TABLE_COMPRESSION;
 import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.HBASE_SCAN_CACHING;
-import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.createVariantTableIfNeeded;
 
 /**
  * Created by mh719 on 09/02/2017.
@@ -30,14 +33,10 @@ public class FromPhoenixToProto extends AbstractAlleleDriver {
 
     public FromPhoenixToProto() { /* nothing */ }
 
-//    @Override
-//    protected Class<? extends TableMapper> getMapperClass() {
-//        return FromPhoenixToProtoMapper.class;
-//    }
-
     @Override
     protected Class<? extends TableMapper> getMapperClass() {
-        return FromPhoenixToProto.SimpleCopy.class;
+        return FromPhoenixToProtoMapper.class;
+//        return FromPhoenixToProto.SimpleCopy.class;
     }
 
 
@@ -51,6 +50,12 @@ public class FromPhoenixToProto extends AbstractAlleleDriver {
         return scan;
     }
 
+    public boolean createHBaseTable(GenomeHelper genomeHelper, String tableName, Connection con) throws IOException {
+        return HBaseManager.createTableIfNeeded(con, tableName, genomeHelper.getColumnFamily(), null,
+                Compression.getCompressionAlgorithmByName(
+                        genomeHelper.getConf().get(CONFIG_VARIANT_TABLE_COMPRESSION, Compression.Algorithm.SNAPPY.getName())));
+    }
+
     @Override
     protected void checkTablesExist(GenomeHelper genomeHelper, String... tables) {
         String protoFixTable = getConf().get(CONFIG_PROTO_FIX_TABLE, "");
@@ -59,8 +64,8 @@ public class FromPhoenixToProto extends AbstractAlleleDriver {
         }
         getLog().info("Make sure Proto Count table exist ...", protoFixTable);
         try (Connection con = ConnectionFactory.createConnection(getHelper().getConf())) {
-//            createHBaseTable(getHelper(), protoFixTable, con); // NO PHOENIX needed!!!!
-            createVariantTableIfNeeded(getHelper(), protoFixTable, con); // With phoenix for comparison
+            this.createHBaseTable(getHelper(), protoFixTable, con); // NO PHOENIX!!!!
+//            createVariantTableIfNeeded(getHelper(), protoFixTable, con); // With phoenix for comparison
         } catch (IOException e) {
             throw new IllegalStateException("Problems creating Table " + protoFixTable);
         }

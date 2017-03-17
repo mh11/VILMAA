@@ -18,8 +18,9 @@ import java.util.function.Function;
 /**
  * Created by mh719 on 23/02/2017.
  */
-public class AlleleCountToHBaseCompactConverter implements AlleleCountToHBaseAppendConverter {
+public class AlleleCountToHBaseCompactConverter implements GroupedAlleleCountToHBaseAppendConverter {
 
+    public static final int DEFAULT_REGION_SIZE = 100;
     private final byte[] refColumn;
     private final byte[] altColumn;
     private final byte[] columnFamily;
@@ -28,8 +29,12 @@ public class AlleleCountToHBaseCompactConverter implements AlleleCountToHBaseApp
     private final BiFunction<String, Integer, byte[]> rowkeyFunction;
 
     public AlleleCountToHBaseCompactConverter(byte[] columnFamily, byte[] refColumn, byte[] altColumn) {
-        // default implementation -> group by 100bp region
-        this(columnFamily, refColumn, altColumn, (pos) -> pos / 100);
+        this(columnFamily, refColumn, altColumn, DEFAULT_REGION_SIZE);
+    }
+
+    public AlleleCountToHBaseCompactConverter(byte[] columnFamily, byte[] refColumn, byte[] altColumn, int region) {
+        // default implementation -> group by region size
+        this(columnFamily, refColumn, altColumn, (pos) -> pos / region);
     }
 
     public AlleleCountToHBaseCompactConverter(byte[] columnFamily, byte[] refColumn, byte[] altColumn,
@@ -109,7 +114,7 @@ public class AlleleCountToHBaseCompactConverter implements AlleleCountToHBaseApp
     private Map<Integer, List<PositionCountHBaseProto>> convertToAltProto(Map<Integer, Map<String, AlleleCountPosition>> variantMap) {
         Map<Integer, List<PositionCountHBaseProto>> grouped = new HashMap<>();
         variantMap.forEach((pos, alts) -> {
-            Integer group = this.groupFunction.apply(pos);
+            Integer group = this.calculateGroupPosition(pos);
             List<PositionCountHBaseProto> lst = grouped.computeIfAbsent(group, (k) -> new ArrayList<>());
             alts.forEach((id, count) -> {
                 PositionCountHBaseProto build = convertToProto(pos, id, count).build();
@@ -122,7 +127,7 @@ public class AlleleCountToHBaseCompactConverter implements AlleleCountToHBaseApp
     public Map<Integer, List<PositionCountHBaseProto>> convertToRefProto(Map<Integer, AlleleCountPosition> referenceMap) {
         Map<Integer, List<PositionCountHBaseProto>> grouped = new HashMap<>();
         referenceMap.forEach((pos, count) -> {
-            Integer group = this.groupFunction.apply(pos);
+            Integer group = this.calculateGroupPosition(pos);
             PositionCountHBaseProto build = convertToProto(pos, StringUtils.EMPTY, count).build();
             grouped.computeIfAbsent(group, (k) -> new ArrayList<>()).add(build);
         });
@@ -138,4 +143,8 @@ public class AlleleCountToHBaseCompactConverter implements AlleleCountToHBaseApp
         return builder.setAlleleCount(countProto);
     }
 
+    @Override
+    public Integer calculateGroupPosition(Integer position) {
+        return this.groupFunction.apply(position);
+    }
 }
