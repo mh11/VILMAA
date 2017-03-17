@@ -3,10 +3,10 @@ package diva.genome.storage.hbase.allele.fix;
 import diva.genome.storage.hbase.allele.AbstractAlleleDriver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.mapreduce.Job;
@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.HBASE_SCAN_CACHING;
-import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.createHBaseTable;
+import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.createVariantTableIfNeeded;
 
 /**
  * Created by mh719 on 09/02/2017.
@@ -30,9 +30,14 @@ public class FromPhoenixToProto extends AbstractAlleleDriver {
 
     public FromPhoenixToProto() { /* nothing */ }
 
+//    @Override
+//    protected Class<? extends TableMapper> getMapperClass() {
+//        return FromPhoenixToProtoMapper.class;
+//    }
+
     @Override
     protected Class<? extends TableMapper> getMapperClass() {
-        return FromPhoenixToProtoMapper.class;
+        return FromPhoenixToProto.SimpleCopy.class;
     }
 
 
@@ -54,7 +59,8 @@ public class FromPhoenixToProto extends AbstractAlleleDriver {
         }
         getLog().info("Make sure Proto Count table exist ...", protoFixTable);
         try (Connection con = ConnectionFactory.createConnection(getHelper().getConf())) {
-            createHBaseTable(getHelper(), protoFixTable, con); // NO PHOENIX needed!!!!
+//            createHBaseTable(getHelper(), protoFixTable, con); // NO PHOENIX needed!!!!
+            createVariantTableIfNeeded(getHelper(), protoFixTable, con); // With phoenix for comparison
         } catch (IOException e) {
             throw new IllegalStateException("Problems creating Table " + protoFixTable);
         }
@@ -100,4 +106,18 @@ public class FromPhoenixToProto extends AbstractAlleleDriver {
     public Logger getLog() {
         return this.LOG;
     }
+
+    public static class SimpleCopy extends TableMapper<ImmutableBytesWritable, Mutation> {
+
+        @Override
+        protected void map(ImmutableBytesWritable key, Result value, Context context) throws IOException,
+                InterruptedException {
+            Put put = new Put(key.get());
+            for (Cell cell : value.listCells()) {
+                put.add(cell);
+            }
+            context.write(key, put);
+        }
+    }
+
 }
