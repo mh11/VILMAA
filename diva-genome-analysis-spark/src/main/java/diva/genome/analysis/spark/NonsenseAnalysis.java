@@ -1,7 +1,5 @@
 package diva.genome.analysis.spark;
 
-import diva.genome.analysis.spark.filter.NonsenseFilter;
-import diva.genome.analysis.spark.filter.RareControlFilter;
 import diva.genome.storage.models.alleles.avro.AlleleCount;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import diva.genome.storage.models.samples.avro.SampleCollection;
@@ -20,11 +18,12 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
+import org.apache.spark.deploy.SparkHadoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -68,6 +67,15 @@ public class NonsenseAnalysis {
         hbaseConf.addResource(new Path("./hbase-site.xml"));
         getLog().info("Using zookeeper parent {} ", hbaseConf.get("zookeeper.znode.parent"));
 
+        // http://stackoverflow.com/questions/38506755/connect-kerberos-secure-hbase-from-spark-streaming
+        // http://stackoverflow.com/questions/34616676/should-i-call-ugi-checktgtandreloginfromkeytab-before-every-action-on-hadoop
+        UserGroupInformation.getLoginUser().reloginFromKeytab();
+
+        // http://stackoverflow.com/questions/35332026/issue-scala-code-in-spark-shell-to-retrieve-data-from-hbase
+        Credentials creds = SparkHadoopUtil.get().getCurrentUserCredentials();
+        UserGroupInformation cur = UserGroupInformation.getCurrentUser();
+        cur.addCredentials(creds);
+        cur.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.PROXY);
 
         // https://community.hortonworks.com/questions/46500/spark-cant-connect-to-hbase-using-kerberos-in-clus.html
 //        hbaseConf.addResource(new Path(hbaseConfDir,"hbase-site.xml"));
@@ -124,15 +132,15 @@ public class NonsenseAnalysis {
         getLog().info("Done");
     }
 
-    static class DoFilter implements Function<AllelesAvro, Boolean> {
-        private static NonsenseFilter nonsense = new NonsenseFilter();
-        private static RareControlFilter rare = new RareControlFilter();
-
-        @Override
-        public Boolean call(AllelesAvro allelesAvro) throws Exception {
-            return rare.call(allelesAvro) && nonsense.call(allelesAvro);
-        }
-    }
+//    static class DoFilter implements Function<AllelesAvro, Boolean> {
+//        private static NonsenseFilter nonsense = new NonsenseFilter();
+//        private static RareControlFilter rare = new RareControlFilter();
+//
+//        @Override
+//        public Boolean call(AllelesAvro allelesAvro) throws Exception {
+//            return rare.call(allelesAvro) && nonsense.call(allelesAvro);
+//        }
+//    }
 
     public static class SampleCollectionSerializable implements Serializable, Externalizable {
 
