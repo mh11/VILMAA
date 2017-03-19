@@ -21,7 +21,7 @@ import java.util.function.Function;
  */
 public class AlleleCountToHBaseCompactConverter implements GroupedAlleleCountToHBaseAppendConverter {
 
-    public static final int DEFAULT_REGION_SIZE = 100;
+    public static final int DEFAULT_REGION_SIZE = 10;
     private final byte[] refColumn;
     private final byte[] altColumn;
     private final byte[] columnFamily;
