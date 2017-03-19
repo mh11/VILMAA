@@ -35,4 +35,8 @@ public abstract class Region<T> {
         return this.getStart() <= other.getMaxPosition() && other.getStart() <= this.getMaxPosition();
     }
 
+    public boolean coveredBy(Region other) {
+        return other.getStart() <= this.getStart() && other.getEnd() >= this.getEnd();
+    }
+
 }

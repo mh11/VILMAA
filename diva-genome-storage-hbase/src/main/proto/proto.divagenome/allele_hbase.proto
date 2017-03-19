@@ -44,19 +44,16 @@ enum AlleleType {
     NO_VARIATION = 4;
 }
 
-message AlleleRegionStoreEntry {
-    string id = 1;
-    uint32 start = 2;
-    uint32 end = 3 ;
-    bool pass = 4;
-    uint32 count = 5;
-    uint32 depth = 6;
-    AlleleType type = 7;
-    uint32 sampleid = 8;
+message ARSEntry {
+    map<sint32, ARSEntry> entry = 1;
+    repeated uint32 sampleIds = 2;
 }
 
 message AlleleRegionStore {
-    repeated AlleleRegionStoreEntry reference = 1;
-    repeated AlleleRegionStoreEntry nocall = 2;
-    repeated AlleleRegionStoreEntry variation = 3;
+    map<bool, ARSEntry> reference = 1;
+    map<bool, ARSEntry> noCall = 2;
+    map<bool, ARSEntry> variation = 3;
 }
+
+
+

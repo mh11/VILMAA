@@ -1,10 +1,8 @@
 package diva.genome.storage.hbase.allele.count.region;
 
 import com.google.protobuf.MessageLite;
-import diva.genome.storage.hbase.allele.count.AlleleInfo;
+import diva.genome.storage.hbase.allele.model.protobuf.*;
 import diva.genome.storage.hbase.allele.model.protobuf.AlleleRegionStore.Builder;
-import diva.genome.storage.hbase.allele.model.protobuf.AlleleRegionStoreEntry;
-import diva.genome.storage.hbase.allele.model.protobuf.AlleleType;
 import diva.genome.util.Region;
 import org.apache.hadoop.hbase.client.Append;
 import org.apache.phoenix.query.QueryConstants;
@@ -14,8 +12,7 @@ import org.opencb.biodata.models.variant.avro.VariantType;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.*;
 
 /**
  * Converts an in-memory {@link AlleleRegionStore} to an append object for HBase.
@@ -23,6 +20,11 @@ import java.util.Collections;
  */
 public class AlleleRegionStoreToAppendConverter {
     protected static final byte[] DEFAULT_QUALIFIER = {1};
+    protected static final int ARS_NO_VARIANT = 0;
+    protected static final int ARS_SNV = 1;
+    protected static final int ARS_MNV = 2;
+    protected static final int ARS_INS = 3;
+    protected static final int ARS_DEL = 4;
     private volatile ByteArrayOutputStream bout;
     private final byte[] columnFamily;
     private byte[] qualifier;
@@ -48,14 +50,86 @@ public class AlleleRegionStoreToAppendConverter {
     }
 
     public Collection<Append> convert(String chromosome, AlleleRegionStore store) {
+        Region targetRegion = store.getTargetRegion();
         Builder builder = diva.genome.storage.hbase.allele.model.protobuf.AlleleRegionStore.newBuilder();
-        store.getReference(r -> builder.addReference(convert(r)));
-        store.getNocall(r -> builder.addNocall(convert(r)));
-        store.getVariation(r -> builder.addVariation(convert(r)));
+        builder.putAllNoCall(buildNoCall(targetRegion, store));
+        builder.putAllReference(buildRefCall(targetRegion, store));
+        builder.putAllVariation(buildVarCall(targetRegion, store));
+
         byte[] bytes = toBytes(builder.build());
-        Append append = new Append(buildRowKey(chromosome, store.getTargetRegion().getMinPosition()));
+        Append append = new Append(buildRowKey(chromosome, targetRegion.getMinPosition()));
         append.add(getColumnFamily(), qualifier, bytes);
         return Collections.singleton(append);
+    }
+
+    private Map<Boolean,ARSEntry> buildVarCall(Region targetRegion, AlleleRegionStore store) {
+        Map<Boolean,Map<VariantType, Map<Integer, Map<Integer, Map<Integer, Map<Integer, List<Integer>>>>>>> map = new HashMap<>();
+        store.getVariation( targetRegion, r -> {
+            map.computeIfAbsent(r.getData().isPass(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getType(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getCount(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getDepth(), k -> new HashMap<>())
+                    .computeIfAbsent(buildStart(r.getStart(), targetRegion.getStart()), k -> new HashMap<>())
+                    .computeIfAbsent( r.getStart() == r.getEnd() ? 0 : r.getEnd() - targetRegion.getStart(), k -> new ArrayList<>())
+                    .add(r.getData().getSampleId());
+        });
+        return buildArs(map);
+    }
+
+    private Map<Boolean,ARSEntry> buildNoCall(Region targetRegion, AlleleRegionStore store) {
+        Map<Boolean,Map<VariantType, Map<Integer, Map<Integer, Map<Integer, Map<Integer, List<Integer>>>>>>> map = new HashMap<>();
+        store.getNocall(targetRegion, r -> {
+            map.computeIfAbsent(r.getData().isPass(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getType(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getCount(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getDepth(), k -> new HashMap<>())
+                    .computeIfAbsent(buildStart(r.getStart(), targetRegion.getStart()), k -> new HashMap<>())
+                    .computeIfAbsent(buildEnd(r.getEnd(), targetRegion.getStart(), targetRegion.getEnd()), k -> new ArrayList<>())
+                    .add(r.getData().getSampleId());
+        });
+        return buildArs(map);
+    }
+
+    private Map<Boolean,ARSEntry> buildRefCall(Region targetRegion, AlleleRegionStore store) {
+        Map<Boolean,Map<VariantType, Map<Integer, Map<Integer, Map<Integer, Map<Integer, List<Integer>>>>>>> map = new HashMap<>();
+        store.getReference(targetRegion, r -> {
+            map.computeIfAbsent(r.getData().isPass(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getType(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getCount(), k -> new HashMap<>())
+                    .computeIfAbsent(buildStart(r.getStart(), targetRegion.getStart()), k -> new HashMap<>())
+                    .computeIfAbsent(buildEnd(r.getEnd(), targetRegion.getStart(), targetRegion.getEnd()), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getDepth(), k -> new ArrayList<>())
+                    .add(r.getData().getSampleId());
+        });
+        return buildArs(map);
+    }
+
+    private Map<Boolean, ARSEntry> buildArs(Map<Boolean,Map<VariantType, Map<Integer, Map<Integer, Map<Integer, Map<Integer, List<Integer>>>>>>> map) {
+        Map<Boolean,ARSEntry> retmap = new HashMap<>();
+        map.forEach((bool, e1) -> {
+            ARSEntry.Builder b1 = ARSEntry.newBuilder();
+            e1.forEach((type, e2) -> {
+                ARSEntry.Builder b2 = ARSEntry.newBuilder();
+                e2.forEach((k3, e3) -> {
+                    ARSEntry.Builder b3 = ARSEntry.newBuilder();
+                    e3.forEach((k4, e4) -> {
+                        ARSEntry.Builder b4 = ARSEntry.newBuilder();
+                        e4.forEach((k5, e5) -> {
+                            ARSEntry.Builder b5 = ARSEntry.newBuilder();
+                            e5.forEach((k6, e6) -> {
+                                b5.putEntry(k6, ARSEntry.newBuilder().addAllSampleIds(e6).build());
+                            });
+                            b4.putEntry(k5, b5.build());
+                        });
+                        b3.putEntry(k4, b4.build());
+                    });
+                    b2.putEntry(k3, b3.build());
+                });
+                b1.putEntry(encodeType(type), b2.build());
+            });
+            retmap.put(bool, b1.build());
+        });
+        return retmap;
     }
 
     private byte[] buildRowKey(String chromosome, Integer position) {
@@ -69,28 +143,32 @@ public class AlleleRegionStoreToAppendConverter {
         return rk;
     }
 
-    private AlleleRegionStoreEntry.Builder convert(Region<AlleleInfo> region) {
-        return AlleleRegionStoreEntry.newBuilder()
-                .setId(region.getData().getIdString())
-                .setStart(region.getStart())
-                .setEnd(region.getEnd())
-                .setPass(region.getData().isPass())
-                .setCount(region.getData().getCount())
-                .setDepth(region.getData().getDepth())
-                .setType(encodeType(region.getData().getType()))
-                .setSampleid(region.getData().getSampleId());
+    private int buildEnd(int regionEnd, int start, int end) {
+        int rend = regionEnd - start; // store relative end
+        if (regionEnd >= end) {
+            rend = 0; // goes beyond end
+        }
+        return rend;
     }
 
-    private AlleleType encodeType(VariantType type) {
+    private int buildStart(int regionStart, int start) {
+        int rstart = regionStart - start; // relative start
+        if (rstart < 0) {
+            rstart = 0;
+        }
+        return rstart;
+    }
+
+    private int encodeType(VariantType type) {
         switch (type) {
+            case NO_VARIATION: return ARS_NO_VARIANT;
             case SNV:
-            case SNP: return AlleleType.SNV;
+            case SNP: return ARS_SNV;
             case MNV:
-            case MNP: return AlleleType.MNV;
+            case MNP: return ARS_MNV;
             case INDEL: throw new IllegalStateException("INDEL should be INSERTION or DELETION");
-            case INSERTION: return AlleleType.INSERTION;
-            case DELETION: return AlleleType.DELETION;
-            case NO_VARIATION: return AlleleType.NO_VARIATION;
+            case INSERTION: return ARS_INS;
+            case DELETION: return ARS_DEL;
             default:
                 throw new IllegalStateException("Not supported yet: " + type);
         }

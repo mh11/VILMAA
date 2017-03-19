@@ -54,4 +54,18 @@ public class RegionTest {
     }
 
 
+
+    @Test
+    public void coverRegion() throws Exception {
+        Region a = new RegionImpl("x", 100, 200);
+        assertFalse(new RegionImpl("x", 99, 201).coveredBy(a));
+        assertFalse(new RegionImpl("x", 99, 200).coveredBy(a));
+        assertFalse(new RegionImpl("x", 100, 201).coveredBy(a));
+        assertTrue(new RegionImpl("x", 100, 200).coveredBy(a));
+        assertTrue(new RegionImpl("x", 101, 199).coveredBy(a));
+
+        assertFalse(a.coveredBy(new RegionImpl("x", 101, 199)));
+
+    }
+
 }

@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.count.region;
 
 import diva.genome.storage.hbase.allele.count.AlleleInfo;
+import diva.genome.util.PointRegion;
 import diva.genome.util.Region;
 import diva.genome.util.RegionImpl;
 import org.apache.commons.lang3.StringUtils;
@@ -63,16 +64,27 @@ public class AlleleRegionStore {
     }
 
     public void getReference(int position, Consumer<Region<AlleleInfo>> consumer) {
-        reference.stream().filter(r -> r.overlap(position)).forEach(consumer);
+        getReference(new PointRegion(null, position), consumer);
+    }
+
+    public void getReference(Region target, Consumer<Region<AlleleInfo>> consumer) {
+        reference.stream().filter(r -> r.overlap(target)).forEach(consumer);
     }
 
     public void getNocall(int position, Consumer<Region<AlleleInfo>> consumer) {
-        noCall.stream().filter(r -> r.overlap(position)).forEach(consumer);
+        getNocall(new PointRegion(null, position), consumer);
     }
 
+    public void getNocall(Region target, Consumer<Region<AlleleInfo>> consumer) {
+        noCall.stream().filter(r -> r.overlap(target)).forEach(consumer);
+    }
 
     public void getVariation(int position, Consumer<Region<AlleleInfo>> consumer) {
-        variation.stream().filter(r -> r.overlap(position)).forEach(consumer);
+        getVariation(new PointRegion(null, position), consumer);
+    }
+
+    public void getVariation(Region target, Consumer<Region<AlleleInfo>> consumer) {
+        variation.stream().filter(r -> r.overlap(target)).forEach(consumer);
     }
 
     public void getInfos(int position, Consumer<Region<AlleleInfo>> consumer) {
