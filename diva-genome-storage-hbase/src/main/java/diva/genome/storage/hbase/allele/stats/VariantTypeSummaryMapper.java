@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CALL;
+import static diva.genome.storage.hbase.allele.count.position.AbstractAlleleCalculator.NO_CALL;
 
 /**
  * Created by mh719 on 12/02/2017.

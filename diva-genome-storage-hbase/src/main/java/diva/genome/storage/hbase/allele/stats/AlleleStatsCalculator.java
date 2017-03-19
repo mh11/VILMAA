@@ -12,9 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
+import static diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator.*;
 import static htsjdk.variant.variantcontext.Allele.NO_CALL_STRING;
 
 /**

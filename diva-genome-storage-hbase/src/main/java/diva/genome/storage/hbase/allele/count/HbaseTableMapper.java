@@ -2,7 +2,8 @@ package diva.genome.storage.hbase.allele.count;
 
 import diva.genome.storage.hbase.allele.count.converter.AllelCountToHBaseSingleConverter;
 import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseAppendConverter;
-import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseAppendGroupedConverter;
+import diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator;
+import diva.genome.storage.hbase.allele.count.region.AlleleRegionCalculator;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Append;
@@ -210,8 +211,8 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
             int nextStartPos = (int) ctx.getNextStartPos();
 
             String studyId = Integer.valueOf(getStudyConfiguration().getStudyId()).toString();
-            HBaseAlleleCalculator alleleCalculator = new HBaseAlleleCalculator(studyId, this.sampleNameToSampleId);
-            alleleCalculator.setRegion(startPos, nextStartPos);
+            AlleleCalculator alleleCalculator = new AlleleRegionCalculator(studyId, this.sampleNameToSampleId, startPos, nextStartPos - 1);
+//                    new HBaseAlleleCalculator(studyId, this.sampleNameToSampleId, startPos, nextStartPos - 1);
 
             getLog().info("Read Archive ...");
             AtomicLong countVariants = new AtomicLong(0);
@@ -253,11 +254,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
         }
     }
 
-    private Collection<Append> packageAlleleCounts(String chromosome, String studyId, HBaseAlleleCalculator alleleCalculator) {
-        return converter.convert(chromosome,
-    /* Convert Reference rows */
-                alleleCalculator.buildReferenceMap(),
-    /* Convert Variant rows */
-                alleleCalculator.buildVariantMap());
+    private Collection<Append> packageAlleleCounts(String chromosome, String studyId, AlleleCalculator alleleCalculator) {
+        return converter.convert(chromosome, alleleCalculator);
     }
 }

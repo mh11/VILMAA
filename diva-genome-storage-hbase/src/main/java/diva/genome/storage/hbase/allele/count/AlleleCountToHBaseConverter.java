@@ -15,8 +15,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.DEL_SYMBOL;
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.INS_SYMBOL;
+import static diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator.DEL_SYMBOL;
+import static diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator.INS_SYMBOL;
 
 /**
  * Created by mh719 on 25/01/2017.

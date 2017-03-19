@@ -7,7 +7,6 @@ import diva.genome.storage.models.alleles.avro.AlleleCount;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
 import org.apache.commons.lang.StringUtils;
 import org.opencb.biodata.models.variant.Variant;
-import org.opencb.biodata.models.variant.avro.ConsequenceType;
 import org.opencb.biodata.models.variant.avro.Score;
 import org.opencb.biodata.models.variant.avro.VariantAnnotation;
 import org.opencb.biodata.models.variant.avro.VariantType;
@@ -19,9 +18,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CALL;
+import static diva.genome.storage.hbase.allele.count.position.AbstractAlleleCalculator.NO_CALL;
 import static java.util.stream.Collectors.*;
 
 /**

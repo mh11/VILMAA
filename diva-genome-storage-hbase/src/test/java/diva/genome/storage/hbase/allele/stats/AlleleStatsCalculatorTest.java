@@ -1,7 +1,7 @@
 package diva.genome.storage.hbase.allele.stats;
 
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
-import diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator;
+import diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator;
 import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
 import diva.genome.storage.hbase.allele.transfer.AlleleCombiner;
 import org.apache.commons.lang3.ObjectUtils;
@@ -15,8 +15,8 @@ import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
 
 import java.util.*;
 
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.buildVariantId;
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculatorTest.*;
+import static diva.genome.storage.hbase.allele.count.AlleleInfo.buildVariantId;
+import static diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculatorTest.*;
 import static diva.genome.storage.hbase.allele.transfer.AlleleCombinerTest.convertListToSet;
 import static org.junit.Assert.assertEquals;
 

@@ -35,3 +35,28 @@ message PositionCountHBaseProto {
     ReferenceCountHBaseProto alleleCount = 3;
 }
 
+
+enum AlleleType {
+    SNV = 0;
+    MNV = 1;
+    INSERTION = 2;
+    DELETION = 3;
+    NO_VARIATION = 4;
+}
+
+message AlleleRegionStoreEntry {
+    string id = 1;
+    uint32 start = 2;
+    uint32 end = 3 ;
+    bool pass = 4;
+    uint32 count = 5;
+    uint32 depth = 6;
+    AlleleType type = 7;
+    uint32 sampleid = 8;
+}
+
+message AlleleRegionStore {
+    repeated AlleleRegionStoreEntry reference = 1;
+    repeated AlleleRegionStoreEntry nocall = 2;
+    repeated AlleleRegionStoreEntry variation = 3;
+}

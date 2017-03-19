@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.count.converter;
 
+import diva.genome.storage.hbase.allele.count.AlleleCalculator;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.model.protobuf.PositionCountHBaseProto;
 import diva.genome.storage.hbase.allele.model.protobuf.ReferenceCountHBaseProto;
@@ -66,8 +67,9 @@ public class AlleleCountToHBaseCompactConverter implements GroupedAlleleCountToH
     }
 
     @Override
-    public Collection<Append> convert(String chromosome, Map<Integer, AlleleCountPosition> referenceMap, Map<Integer,
-            Map<String, AlleleCountPosition>> variantMap) {
+    public Collection<Append> convert(String chromosome, AlleleCalculator calculator) {
+        Map<Integer, AlleleCountPosition> referenceMap = calculator.buildReferenceMap();
+        Map<Integer, Map<String, AlleleCountPosition>> variantMap = calculator.buildVariantMap();
         List<Append> appends = new ArrayList<>();
         Map<Integer, List<PositionCountHBaseProto>> refMap = convertToRefProto(referenceMap);
         Map<Integer, List<PositionCountHBaseProto>> altMap = convertToAltProto(variantMap);

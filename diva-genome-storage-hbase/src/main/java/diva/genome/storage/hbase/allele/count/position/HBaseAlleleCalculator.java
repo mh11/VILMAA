@@ -1,15 +1,14 @@
-package diva.genome.storage.hbase.allele.count;
+package diva.genome.storage.hbase.allele.count.position;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-import org.opencb.biodata.models.feature.Genotype;
+import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
+import diva.genome.storage.hbase.allele.count.AlleleInfo;
+import diva.genome.util.Region;
+import diva.genome.util.RegionImpl;
 import org.opencb.biodata.models.variant.StudyEntry;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.biodata.models.variant.avro.AlternateCoordinate;
 import org.opencb.biodata.models.variant.avro.VariantType;
 import org.opencb.biodata.tools.variant.merge.VariantMerger;
-import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,18 +25,11 @@ import java.util.stream.Collectors;
  *
  * Created by mh719 on 25/01/2017.
  */
-public class HBaseAlleleCalculator {
+public class HBaseAlleleCalculator extends AbstractAlleleCalculator {
     public static final String DEL_SYMBOL = "*";
     public static final String INS_SYMBOL = "+";
-    public static final Integer NO_CALL = -1;
-    private static final Integer REF_IDX = 0;
-    protected static final String ANNOTATION_FILTER = "FILTER";
-    protected static final String DEFAULT_ANNOTATION_FILTER_VALUE = VariantMerger.DEFAULT_FILTER_VALUE;
-    protected static final String PASS_VALUE = VariantMerger.PASS_VALUE;
 
     private Logger log = LoggerFactory.getLogger(this.getClass());
-    private final String studyId;
-    private final Map<String, Integer> sampleNameToSampleId;
 
     // <position> <AlleleCnt> <SampleIds>: Allele count is -1 (nocall), 0 (other alleles), 1, 2
     private volatile Map<Integer, Map<Integer, Set<Integer>>> referenceToGtToSamples = new HashMap<>();
@@ -49,69 +41,67 @@ public class HBaseAlleleCalculator {
 
     private final Map<Integer, Set<Integer>> passPosition = new HashMap<>();
     private final Map<Integer, Set<Integer>> notPassPosition = new HashMap<>();
-    private volatile Pair<Integer, Integer> region = new ImmutablePair<>(0, Integer.MAX_VALUE);
 
     public HBaseAlleleCalculator(String studyId, Map<String, Integer> sampleNameToSampleId) {
-        this.studyId = studyId;
-        this.sampleNameToSampleId = sampleNameToSampleId;
+        this(studyId, sampleNameToSampleId, 0, Integer.MAX_VALUE);
     }
-
-    /**
-     *
-     * @param start Start position (inclusive).
-     * @param end End position (exclusive)
-     */
-    public void setRegion(int start, int end) {
-        this.region = new ImmutablePair<>(start, end);
+    public HBaseAlleleCalculator(String studyId, Map<String, Integer> sampleNameToSampleId, int start, int end) {
+        super(start, end, studyId, sampleNameToSampleId, true);
     }
 
     public void addVariant(Variant variant) {
         StudyEntry se = variant.getStudy(studyId);
         boolean isPass = isPassFilter(se);
-
         List<AlternateCoordinate> secondaryAlternates = se.getSecondaryAlternates();
         Integer gtPos = se.getFormatPositions().get(VariantMerger.GT_KEY);
+        Integer dpPos = se.getFormatPositions().get(DP_KEY);
+        Integer adPos = se.getFormatPositions().get(AD_KEY);
         List<List<String>> samplesData = se.getSamplesData();
         se.getSamplesPosition().forEach((sampleName, sampPos) -> {
             Integer sampleId = this.getSampleId(sampleName);
-            Map<Integer, Integer> alleleCount = getAlleleCount(samplesData.get(sampPos).get(gtPos));
-            Integer refAlleleCnt = alleleCount.getOrDefault(REF_IDX, 0);
-            updateReferenceCount(variant.getStart(), variant.getEnd(), sampleId, alleleCount);
+            Map<Integer, AlleleInfo> alleleCount = getAlleleCount(samplesData.get(sampPos), gtPos, dpPos, adPos);
+            AlleleInfo refAllele = alleleCount.getOrDefault(REF_IDX, new AlleleInfo(0, 0));
+            Region<Map<Integer, AlleleInfo>> region = new RegionImpl<>(alleleCount, variant.getStart(), variant.getEnd());
+            updateReferenceCount(sampleId, region);
             updatePassAnnotation(variant.getStart(), variant.getEnd(), sampleId, isPass);
-            for (Map.Entry<Integer, Integer> entry : alleleCount.entrySet()) {
+            for (Map.Entry<Integer, AlleleInfo> entry : alleleCount.entrySet()) {
+                AlleleInfo currInfo = entry.getValue();
                 Integer alleleId = entry.getKey();
-                String[] refAlt = buildRefAlt(variant, secondaryAlternates, alleleId);
+                currInfo.setId(buildRefAlt(variant, secondaryAlternates, alleleId));
+                currInfo.setType(getAlleleType(variant, secondaryAlternates, alleleId));
                 Integer start = getAlleleStart(variant, secondaryAlternates, alleleId);
                 Integer end = getAlleleEnd(variant, secondaryAlternates, alleleId);
-                VariantType alleleType = getAlleleType(variant, secondaryAlternates, alleleId);
-                updateAlternateCount(sampleId, entry.getValue(), refAlt, start, end, alleleType);
+                Region<AlleleInfo> altReg = new RegionImpl<>(currInfo, start, end);
+                if (currInfo.getType().equals(VariantType.INDEL) && start > end) {
+                    currInfo.setType(VariantType.INSERTION);
+                }
+                updateAlternateCount(sampleId, altReg);
                 updatePassAnnotation(start, end, sampleId, isPass);
                 int vMin = Math.min(variant.getStart(), variant.getEnd());
                 int min = Math.min(start, end);
                 int vMax = Math.max(variant.getStart(), variant.getEnd());
                 int max = Math.max(start, end);
+                int fillRefCount = refAllele.getCount() + (2 - currInfo.getCount());
+                AlleleInfo fillInfo = new AlleleInfo(fillRefCount, currInfo.getDepth());
+                fillInfo.setType(VariantType.NO_VARIATION);
                 if (vMin != min) {
-                    int fillRefCount = refAlleleCnt + (2 - entry.getValue());
-                    updateReferenceCount(Math.min(vMin, min), Math.max(vMin, min) - 1, sampleId, fillRefCount);
+                    updateReferenceCount(Math.min(vMin, min), Math.max(vMin, min) - 1, sampleId, fillInfo);
                 }
                 if (vMax != max) {
-                    int fillRefCount = refAlleleCnt + (2 - entry.getValue());
-                    updateReferenceCount(Math.min(vMax, max) + 1, Math.max(vMax, max), sampleId, fillRefCount);
+                    updateReferenceCount(Math.min(vMax, max) + 1, Math.max(vMax, max), sampleId, fillInfo);
                 }
             }
         });
     }
 
-    private int[] calculateRegion(Integer start, Integer end) {
-        if (start > end) {
-            end = start; // INSERTIONS
-        }
-        int min = Math.max(start, this.region.getLeft());
-        int max = Math.min(end, this.region.getRight() - 1);
+    private int[] calculateRegion(int start, int end) {
+        int min = Math.max(start, this.region.getStart());
+        end = Math.max(start, end);  // INSERTIONS (start > end)
+        int max = Math.min(end, this.region.getEnd());
         return new int[]{min, max};
     }
 
-    private void updatePassAnnotation(Integer start, Integer end, Integer sampleId, boolean isPass) {
+    protected void updatePassAnnotation(Integer start, Integer end, Integer sampleId, boolean isPass) {
         int[] reg = calculateRegion(start, end);
         for (Integer i = reg[0]; i <= reg[1]; ++i) {
             if (isPass) {
@@ -123,6 +113,7 @@ public class HBaseAlleleCalculator {
     }
 
 
+    @Override
     public Map<Integer,Map<String,AlleleCountPosition>> buildVariantMap() {
         Map<Integer,Map<String,AlleleCountPosition>> map = new HashMap<>();
         this.forEachVariantPosition(position -> this.forEachVariant(position, (var, count) ->
@@ -131,6 +122,7 @@ public class HBaseAlleleCalculator {
         return map;
     }
 
+    @Override
     public Map<Integer, AlleleCountPosition> buildReferenceMap() {
         Map<Integer, AlleleCountPosition> map = new HashMap<>();
         this.forEachPosition((position, count) -> map.put(position, count));
@@ -207,88 +199,16 @@ public class HBaseAlleleCalculator {
         return count;
     }
 
-    public static VariantType getAlleleType(Variant var, List<AlternateCoordinate> secondaryAlternates, Integer allele) {
-        switch (allele) {
-            case 0:
-            case 1: return var.getType();
-            default:
-                AlternateCoordinate alt = secondaryAlternates.get(allele - 2);
-                return alt.getType();
-        }
-    }
-
-    public static Integer getAlleleStart(Variant var, List<AlternateCoordinate> secondaryAlternates, Integer allele) {
-        switch (allele) {
-            case 0:
-            case 1: return var.getStart();
-            default:
-                AlternateCoordinate alt = secondaryAlternates.get(allele - 2);
-                return alt.getStart();
-        }
-    }
-    public static Integer getAlleleEnd(Variant var, List<AlternateCoordinate> secondaryAlternates, Integer allele) {
-        switch (allele) {
-            case 0:
-            case 1: return var.getEnd();
-            default:
-                AlternateCoordinate alt = secondaryAlternates.get(allele - 2);
-                return alt.getEnd();
-        }
-    }
-
-    public static String[] buildRefAlt(Variant var, List<AlternateCoordinate> secondaryAlternates, Integer allele) {
-        switch (allele) {
-            case 0: return new String[0];
-            case 1: return new String[] { var.getReference(), var.getAlternate()};
-            default:
-                AlternateCoordinate alt = secondaryAlternates.get(allele - 2);
-                return new String[] { alt.getReference(), alt.getAlternate()};
-        }
-    }
-    public static String buildVariantId(String[] refAlt) {
-        return buildVariantId(StringUtils.EMPTY, refAlt);
-    }
-
-    public static String buildVariantId(String prefix, String[] refAlt) {
-        if (refAlt.length == 0) {
-            return StringUtils.EMPTY; // Reference
-        }
-        if (refAlt.length != 2) {
-            throw new IllegalStateException("RefAlt array expected to be of length 2: " + Arrays.toString(refAlt));
-        }
-        return buildVariantId(prefix, refAlt[0], refAlt[1]);
-    }
-    public static String buildVariantId(String prefix, String ref, String alt) {
-        return prefix + ref + "_" + alt;
-    }
-
-    public static Map<Integer, Integer> getAlleleCount(String gt) {
-        Map<Integer, Integer> retMap = new HashMap<>();
-        int[] allelesIdx = new Genotype(gt).getAllelesIdx();
-        for (Integer idx : allelesIdx) {
-            Integer cnt = retMap.getOrDefault(idx, 0);
-            retMap.put(idx, cnt + 1);
-        }
-        if (retMap.containsKey(NO_CALL) && retMap.get(NO_CALL) > 0) {
-            if (retMap.size() > 1) { // other than no-call
-                retMap.remove(NO_CALL);
-            } else {
-                retMap.put(NO_CALL, 1); // Reset to 1 Allele -> no difference between ./. and .
-            }
-        }
-        return retMap;
-    }
-
-    protected void updateReferenceCount(Integer start, Integer end, Integer sampleId, Map<Integer, Integer> alleleCount) {
-        if (alleleCount.containsKey(NO_CALL)) {
-            int[] reg = calculateRegion(start, end);
+    protected void updateReferenceCount(Integer sampleId, Region<Map<Integer, AlleleInfo>> region) {
+        if (region.getData().containsKey(NO_CALL)) {
+            int[] reg = calculateRegion(region.getStart(), region.getEnd());
             for (Integer i = reg[0]; i <= reg[1]; ++i) {
                 getReference(i, NO_CALL).add(sampleId);
             }
-            alleleCount.remove(NO_CALL);
-        } else if (alleleCount.containsKey(REF_IDX)) {
-            Integer refCallCnt = alleleCount.remove(REF_IDX);
-            updateReferenceCount(start, end, sampleId, refCallCnt);
+            region.getData().remove(NO_CALL);
+        } else if ( region.getData().containsKey(REF_IDX)) {
+            AlleleInfo refCallCnt =  region.getData().remove(REF_IDX);
+            updateReferenceCount(region.getStart(), region.getEnd(), sampleId, refCallCnt);
         }
     }
 
@@ -328,50 +248,51 @@ public class HBaseAlleleCalculator {
         return getAlt(position, var).computeIfAbsent(alleles, (k) -> new HashSet<>());
     }
 
+    @Override
     public Set<Integer> getPass(Integer position) {
         return this.passPosition.computeIfAbsent(position, k -> new HashSet<>());
     }
 
+    @Override
     public Set<Integer> getNotPass(Integer position) {
         return this.notPassPosition.computeIfAbsent(position, k -> new HashSet<>());
     }
 
-    protected void updateReferenceCount(Integer start, Integer end, Integer sampleId, Integer refAlleleCnt) {
+    protected void updateReferenceCount(Integer start, Integer end, Integer sampleId, AlleleInfo refAlleleCnt) {
         int[] reg = calculateRegion(start, end);
         boolean insertion = start > end;
-
+        AlleleInfo info = refAlleleCnt;
         if (insertion) {
-            refAlleleCnt *= -1; // negative for INSERTION
-            refAlleleCnt += NO_CALL; // offset of -1 (-2,-3,...)
+            // negative for INSERTION
+            // offset of -1 (-2,-3,...)
+            info = new AlleleInfo((info.getCount() * -1) + NO_CALL, info.getDepth());
         }
         for (Integer i = reg[0]; i <= reg[1]; ++i) {
-            getReference(i, refAlleleCnt).add(sampleId);
+            getReference(i, info.getCount()).add(sampleId);
         }
     }
 
-    protected void updateAlternateCount(Integer sampleId, Integer alleleCnt, String[] refAlt, Integer start, Integer end,
-                                        VariantType alleleType) {
-        String vid = buildVariantId(refAlt);
+    protected void updateAlternateCount(Integer sampleId, Region<AlleleInfo> altReg) {
+        AlleleInfo alleleInfo = altReg.getData();
+        String vid = alleleInfo.getIdString();
         // Register actual variants
+        int start = altReg.getStart();
+        int end = altReg.getEnd();
         if (isInRegion(start)) {
-            getVariant(start, vid, alleleCnt).add(sampleId);
+            getVariant(start, vid, alleleInfo.getCount()).add(sampleId);
         }
         String delStar = DEL_SYMBOL;
-
-        if (alleleType.equals(VariantType.INDEL) && start > end) {
-            alleleType = VariantType.INSERTION;
-        }
-        if (alleleType.equals(VariantType.INSERTION)) {
+        if (alleleInfo.getType().equals(VariantType.INSERTION)) {
             delStar = INS_SYMBOL;
         }
 
         // Register * for overlapping regions
-        switch (alleleType) {
+        switch (alleleInfo.getType()) {
             case SNV:
             case SNP:
                 if (isInRegion(start)) { // Add SNPs also to Reference position
-                    String alt = refAlt[1];
-                    getAlt(start, alt, alleleCnt).add(sampleId);
+                    String alt = alleleInfo.getId()[1];
+                    getAlt(start, alt, alleleInfo.getCount()).add(sampleId);
                 }
                 break;
             case INSERTION:
@@ -382,8 +303,8 @@ public class HBaseAlleleCalculator {
                 // Register * for overlapping regions
                 int[] reg = calculateRegion(start, end);
                 for (int i = reg[0]; i <= reg[1]; ++i) {
-                    Collection<Integer> sampleIds = getAlt(i, delStar, alleleCnt);
-                    int tmpCnt = alleleCnt;
+                    Collection<Integer> sampleIds = getAlt(i, delStar, alleleInfo.getCount());
+                    int tmpCnt = alleleInfo.getCount();
                     while (sampleIds.remove(sampleId)) {
                         ++tmpCnt;
                         sampleIds = getAlt(i, delStar, tmpCnt);
@@ -398,9 +319,10 @@ public class HBaseAlleleCalculator {
     }
 
     private boolean isInRegion(Integer start) {
-        return start >= this.region.getLeft() && start < this.region.getRight();
+        return this.region.overlap(start);
     }
 
+    @Override
     public void onlyLeaveSparseRepresentation(int startPos, int nextStartPos, boolean removePass, boolean removeHomRef) {
         for (int i = startPos; i < nextStartPos; i++) {
             onlyLeaveSparseRepresentation(i, removePass, removeHomRef);
@@ -440,6 +362,7 @@ public class HBaseAlleleCalculator {
      * @param startPos     Start position (Inclusive).
      * @param nextStartPos End position (exclusive).
      */
+    @Override
     public void fillNoCalls(Collection<String> expectedSamples, long startPos, long nextStartPos) {
         long timeOld = 0;
         long timeNew = 0;
@@ -459,19 +382,4 @@ public class HBaseAlleleCalculator {
         log.info("Runtime old: [{}]; new: [{}]", timeOld, timeNew);
     }
 
-    private Integer getSampleId(String sampleName) {
-        return this.sampleNameToSampleId.get(sampleName);
-    }
-
-    private boolean isPassFilter(StudyEntry studyEntry) {
-        return StringUtils.equals(getFilterValue(studyEntry), PASS_VALUE);
-    }
-
-    private String getFilterValue(StudyEntry studyEntry) {
-        if (studyEntry.getFiles().isEmpty()) {
-            return DEFAULT_ANNOTATION_FILTER_VALUE;
-        }
-        return studyEntry.getFiles().get(0).getAttributes()
-                .getOrDefault(ANNOTATION_FILTER, DEFAULT_ANNOTATION_FILTER_VALUE);
-    }
 }

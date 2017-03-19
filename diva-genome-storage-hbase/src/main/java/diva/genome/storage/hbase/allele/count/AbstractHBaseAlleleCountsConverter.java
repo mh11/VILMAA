@@ -19,7 +19,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CALL;
+import static diva.genome.storage.hbase.allele.count.position.AbstractAlleleCalculator.NO_CALL;
 
 /**
  * Created by mh719 on 24/02/2017.

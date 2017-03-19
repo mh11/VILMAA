@@ -131,7 +131,7 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
             }
         });
 
-        Collection<Append> appends = groupedConverter.convert(chromosome, refMap, altMap);
+        Collection<Append> appends = groupedConverter.convert(chromosome, new DummyAlleleCalculator(refMap, altMap));
         this.positionBuffer.clear();
         if (null == appends || appends.isEmpty()) {
             return;

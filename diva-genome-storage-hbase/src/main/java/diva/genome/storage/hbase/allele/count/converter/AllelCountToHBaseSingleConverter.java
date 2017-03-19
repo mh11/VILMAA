@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.count.converter;
 
+import diva.genome.storage.hbase.allele.count.AlleleCalculator;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter;
 import org.apache.hadoop.hbase.client.Append;
@@ -20,8 +21,9 @@ public class AllelCountToHBaseSingleConverter implements AlleleCountToHBaseAppen
     }
 
     @Override
-    public Collection<Append> convert(String chromosome, Map<Integer, AlleleCountPosition> referenceMap, Map<Integer,
-            Map<String, AlleleCountPosition>> variantMap) {
+    public Collection<Append> convert(String chromosome, AlleleCalculator calculator) {
+        Map<Integer, AlleleCountPosition> referenceMap = calculator.buildReferenceMap();
+        Map<Integer, Map<String, AlleleCountPosition>> variantMap = calculator.buildVariantMap();
         List<Append> appends = new ArrayList<>();
         /* Convert Reference rows */
         referenceMap.forEach((position, count) -> {

@@ -1,5 +1,8 @@
-package diva.genome.storage.hbase.allele.count;
+package diva.genome.storage.hbase.allele.count.position;
 
+import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
+import diva.genome.storage.hbase.allele.count.AlleleInfo;
+import diva.genome.util.RegionImpl;
 import org.apache.commons.collections.map.HashedMap;
 import org.junit.Test;
 import org.opencb.biodata.models.variant.StudyEntry;
@@ -10,7 +13,7 @@ import org.opencb.biodata.models.variant.avro.VariantType;
 
 import java.util.*;
 
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
+import static diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator.*;
 import static org.junit.Assert.*;
 
 /**
@@ -92,8 +95,8 @@ public class HBaseAlleleCalculatorTest {
         Map<String, Integer> samplePos = new HashMap<>();
         samplePos.put(sampleName1, 0);
         studyEntry.setSamplesPosition(samplePos);
-        studyEntry.setFormat(Arrays.asList("GT"));
-        studyEntry.setSamplesData(Arrays.asList(Arrays.asList("1/2")));
+        studyEntry.setFormat(Arrays.asList("GT", "AD"));
+        studyEntry.setSamplesData(Arrays.asList(Arrays.asList("1/2", "1,12,13")));
 
         FileEntry file = new FileEntry("1","1/2", map("FILTER","not-pass"));
         studyEntry.setFiles(Collections.singletonList(file));
@@ -122,10 +125,9 @@ public class HBaseAlleleCalculatorTest {
     @Test
     public void setRegionRef() throws Exception {
         int sampleId = 10;
-        HBaseAlleleCalculator calculator = new HBaseAlleleCalculator("a", Collections.emptyMap());
-        calculator.setRegion(100, 102);
-        Map<Integer, Integer> allelecnt = map(0, 1);
-        calculator.updateReferenceCount(99, 102, sampleId, allelecnt);
+        HBaseAlleleCalculator calculator = new HBaseAlleleCalculator("a", Collections.emptyMap(), 100, 102);
+        Map<Integer, AlleleInfo> allelecnt = map(0, new AlleleInfo(1, 0));
+        calculator.updateReferenceCount(sampleId, new RegionImpl<>(allelecnt, 99, 102));
 
         assertNull(calculator.buildPositionCount(99));
         assertNotNull(calculator.buildPositionCount(100));
@@ -136,11 +138,14 @@ public class HBaseAlleleCalculatorTest {
     @Test
     public void setRegionAlt() throws Exception {
         int sampleId = 10;
-        HBaseAlleleCalculator calculator = new HBaseAlleleCalculator("a", Collections.emptyMap());
-        calculator.setRegion(100,102);
+        HBaseAlleleCalculator calculator = new HBaseAlleleCalculator("a", Collections.emptyMap(), 100, 102);
         String[] refAlt = {"ABC", ""};
-        String vid = HBaseAlleleCalculator.buildVariantId(refAlt);
-        calculator.updateAlternateCount(sampleId, 1, refAlt, 99, 102, VariantType.INDEL);
+        String vid = AlleleInfo.buildVariantId(refAlt);
+
+        RegionImpl<AlleleInfo> region = new RegionImpl<>(new AlleleInfo(1, 0), 99, 102);
+        region.getData().setType(VariantType.INDEL);
+        region.getData().setId(refAlt);
+        calculator.updateAlternateCount(sampleId, region);
 
         assertNull(calculator.buildVariantCount(99, vid));
         assertNull(calculator.buildVariantCount(100, vid));
@@ -229,7 +234,7 @@ public class HBaseAlleleCalculatorTest {
         Map<String, Integer> idMapping = new HashMap<>();
         String sampleName = "Sample 1";
         idMapping.put(sampleName, 1);
-        HBaseAlleleCalculator calculator = new HBaseAlleleCalculator(studyId, idMapping);
+        AbstractAlleleCalculator calculator = new HBaseAlleleCalculator(studyId, idMapping);
 
         Variant variant = new Variant("1:100:AT:-");
         StudyEntry studyEntry = new StudyEntry(null, studyId);
@@ -266,12 +271,12 @@ public class HBaseAlleleCalculatorTest {
     public void updateReferenceCount_NOCALL() {
         int sampleId = 10;
         HBaseAlleleCalculator calculator = new HBaseAlleleCalculator("a", Collections.emptyMap());
-        Map<Integer, Integer> alleleCount = new HashMap<>();
-        alleleCount.put(-1, 1);
-
+        Map<Integer, AlleleInfo> alleleCount = new HashMap<>();
+        alleleCount.put(-1, new AlleleInfo(1, 0));
 
         assertEquals(1, alleleCount.size());
-        calculator.updateReferenceCount(100, 102, sampleId, alleleCount);
+        calculator.updateReferenceCount(sampleId, new RegionImpl<>(alleleCount, 100, 102));
+
         assertEquals(0, alleleCount.size()); // make sure it is removed
         for (int i = 100; i < 103; ++i) {
             AlleleCountPosition position = calculator.buildPositionCount(i);
@@ -290,10 +295,13 @@ public class HBaseAlleleCalculatorTest {
 
         String alt = "T";
         String[] refAlt = {"V", alt};
-        String vid = HBaseAlleleCalculator.buildVariantId(refAlt);
+        String vid = AlleleInfo.buildVariantId(refAlt);
         int start = 100;
         int end = 100;
-        calculator.updateAlternateCount(sampleId, 1, refAlt, start, end, VariantType.SNP);
+        RegionImpl<AlleleInfo> region = new RegionImpl<>(new AlleleInfo(1, 0), start, end);
+        region.getData().setType(VariantType.SNP);
+        region.getData().setId(refAlt);
+        calculator.updateAlternateCount(sampleId, region);
 
         assertNotNull(calculator.buildVariantCount(100, vid));
         assertNotNull(calculator.buildVariantCount(100, vid).getAlternate().get(1));
@@ -313,10 +321,13 @@ public class HBaseAlleleCalculatorTest {
 
         Variant var = new Variant("1:100:ATG:-");
         String[] refAlt = {"ATG", ""};
-        String vid = HBaseAlleleCalculator.buildVariantId(refAlt);
+        String vid = AlleleInfo.buildVariantId(refAlt);
         int start = var.getStart();
         int end = var.getEnd();
-        calculator.updateAlternateCount(sampleId, 1, refAlt, start, end, VariantType.INDEL);
+        RegionImpl<AlleleInfo> region = new RegionImpl<>(new AlleleInfo(1, 0), start, end);
+        region.getData().setType(VariantType.INDEL);
+        region.getData().setId(refAlt);
+        calculator.updateAlternateCount(sampleId, region);
 
         assertNotNull(calculator.buildVariantCount(start, vid));
         assertNotNull(calculator.buildVariantCount(start, vid).getAlternate().get(1));
@@ -332,9 +343,12 @@ public class HBaseAlleleCalculatorTest {
         assertNull(calculator.buildPositionCount(start + 2).getAltMap().get("*").get(2));
 
         refAlt = new String[] {"TG", ""};
-        vid = HBaseAlleleCalculator.buildVariantId(refAlt);
+        vid = AlleleInfo.buildVariantId(refAlt);
         start += 1;
-        calculator.updateAlternateCount(sampleId, 1, refAlt, start, end, VariantType.INDEL);
+        region = new RegionImpl<>(new AlleleInfo(1, 0), start, end);
+        region.getData().setType(VariantType.INDEL);
+        region.getData().setId(refAlt);
+        calculator.updateAlternateCount(sampleId, region);
 
         assertNotNull(calculator.buildVariantCount(start, vid));
         assertNotNull(calculator.buildVariantCount(start, vid).getAlternate().get(1));
@@ -353,19 +367,19 @@ public class HBaseAlleleCalculatorTest {
     public void updateReferenceCount_REF_CALL() {
         HBaseAlleleCalculator calculator = new HBaseAlleleCalculator("a", Collections.emptyMap());
         int sampleId = 10;
-        Map<Integer, Integer> alleleCount = new HashMap<>();
-        alleleCount.put(0, 1);
-        alleleCount.put(1, 1);
+        Map<Integer, AlleleInfo> alleleCount = new HashMap<>();
+        alleleCount.put(0, new AlleleInfo(1, 0));
+        alleleCount.put(1, new AlleleInfo(1, 0));
 
         assertEquals(2, alleleCount.size());
-        calculator.updateReferenceCount(100, 102, sampleId, alleleCount);
+        calculator.updateReferenceCount(sampleId, new RegionImpl<>(alleleCount, 100, 102));
         assertEquals(1, alleleCount.size()); // make sure it is removed
 
         for (int i = 100; i < 103; i++) {
             AlleleCountPosition position = calculator.buildPositionCount(i);
             Map<Integer, List<Integer>> ref = position.getReference();
             assertEquals(1, ref.size());
-            assertNotNull(ref.get(1));
+            assertNotNull("Problems with position " + i, ref.get(1));
             assertNull(ref.get(2));
             assertTrue(ref.get(1).contains(sampleId));
         }
@@ -375,12 +389,12 @@ public class HBaseAlleleCalculatorTest {
     public void updateReferenceCount_HOM_REF_CALL() {
         HBaseAlleleCalculator calculator = new HBaseAlleleCalculator("a", Collections.emptyMap());
         int sampleId = 10;
-        Map<Integer, Integer> alleleCount = new HashMap<>();
-        alleleCount.put(0, 2);
-        alleleCount.put(1, 1);
+        Map<Integer, AlleleInfo> alleleCount = new HashMap<>();
+        alleleCount.put(0, new AlleleInfo(2, 0));
+        alleleCount.put(1, new AlleleInfo(1, 0));
 
         assertEquals(2, alleleCount.size());
-        calculator.updateReferenceCount(100, 102, sampleId, alleleCount);
+        calculator.updateReferenceCount(sampleId, new RegionImpl<>(alleleCount, 100, 102));
         assertEquals(1, alleleCount.size()); // make sure it is removed
 
         for (int i = 100; i < 103; i++) {
@@ -399,21 +413,21 @@ public class HBaseAlleleCalculatorTest {
                 new AlternateCoordinate("1",100,102, "ATC","", VariantType.INDEL),
                 new AlternateCoordinate("1",100,99, "","ABC", VariantType.INDEL)
         );
-        assertEquals("", HBaseAlleleCalculator.buildVariantId("V_", buildRefAlt(var, null, 0)));
-        assertEquals("V_A_C", HBaseAlleleCalculator.buildVariantId("V_", buildRefAlt(var, null, 1)));
-        assertEquals("V_ATC_", HBaseAlleleCalculator.buildVariantId("V_", buildRefAlt(var, alts, 2)));
-        assertEquals("V__ABC", HBaseAlleleCalculator.buildVariantId("V_", buildRefAlt(var, alts, 3)));
+        assertEquals("", AlleleInfo.buildVariantId("V_", buildRefAlt(var, null, 0)));
+        assertEquals("V_A_C", AlleleInfo.buildVariantId("V_", buildRefAlt(var, null, 1)));
+        assertEquals("V_ATC_", AlleleInfo.buildVariantId("V_", buildRefAlt(var, alts, 2)));
+        assertEquals("V__ABC", AlleleInfo.buildVariantId("V_", buildRefAlt(var, alts, 3)));
     }
 
     @Test
     public void getAlleleCount() {
-        assertEquals(map(-1, 1), HBaseAlleleCalculator.getAlleleCount("."));
-        assertEquals(map(-1, 1), HBaseAlleleCalculator.getAlleleCount("./."));
-        assertEquals(map(0, 2), HBaseAlleleCalculator.getAlleleCount("0/0"));
-        assertEquals(map(0, 1), HBaseAlleleCalculator.getAlleleCount("0"));
-        assertEquals(map(0, 1), HBaseAlleleCalculator.getAlleleCount("./0"));
-        assertEquals(map(0, 1, 1, 1), HBaseAlleleCalculator.getAlleleCount("0/1"));
-        assertEquals(map(1, 1), HBaseAlleleCalculator.getAlleleCount("./1"));
+        assertEquals(map(-1, 1), AbstractAlleleCalculator.getAlleleCount("."));
+        assertEquals(map(-1, 1), AbstractAlleleCalculator.getAlleleCount("./."));
+        assertEquals(map(0, 2), AbstractAlleleCalculator.getAlleleCount("0/0"));
+        assertEquals(map(0, 1), AbstractAlleleCalculator.getAlleleCount("0"));
+        assertEquals(map(0, 1), AbstractAlleleCalculator.getAlleleCount("./0"));
+        assertEquals(map(0, 1, 1, 1), AbstractAlleleCalculator.getAlleleCount("0/1"));
+        assertEquals(map(1, 1), AbstractAlleleCalculator.getAlleleCount("./1"));
     }
 
     public static <K,V> Map<K, V> mapObj(K k, V v, Object ... ints) {

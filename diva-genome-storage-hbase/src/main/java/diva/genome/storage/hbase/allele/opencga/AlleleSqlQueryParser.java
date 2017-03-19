@@ -21,8 +21,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter.*;
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.DEL_SYMBOL;
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.INS_SYMBOL;
+import static diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator.DEL_SYMBOL;
+import static diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator.INS_SYMBOL;
 import static org.opencb.opencga.storage.core.variant.adaptors.VariantDBAdaptor.VariantQueryParams.*;
 import static org.opencb.opencga.storage.core.variant.adaptors.VariantDBAdaptorUtils.isValidParam;
 import static org.opencb.opencga.storage.hadoop.variant.index.VariantTableStudyRow.*;

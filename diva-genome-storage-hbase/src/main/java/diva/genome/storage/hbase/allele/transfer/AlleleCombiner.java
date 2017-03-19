@@ -1,7 +1,6 @@
 package diva.genome.storage.hbase.allele.transfer;
 
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
-import diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator;
 import org.apache.commons.lang3.ObjectUtils;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.biodata.models.variant.avro.VariantType;
@@ -11,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
+import static diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator.*;
 
 /**
  * Created by mh719 on 03/02/2017.
