@@ -50,6 +50,7 @@ protocol Alleles {
         float mgf;
         string mafAllele;
         int numSamples;
+        float hwe;
     }
 
 
@@ -91,16 +92,6 @@ protocol Alleles {
          */
         string alternate;
 
-        /**
-         * Length of the variation (e.g. 1 for SNV, length of alt for INS, length of ref for DEL)
-         */
-        int lengthVariant;
-
-        /**
-         * Length of the variation (e.g. 1 for SNV, 0 for INS, length of ref for DEL)
-         */
-        int lengthReference;
-
         int numberOfSamples;
         int pass;
         array<int> notPass;
@@ -110,7 +101,7 @@ protocol Alleles {
 
         array<string> consequenceTypes;
         array<string> bioTypes;
-        union { null, float } caddScaledMax = null;
+        union { null, float } caddScaled = null;
         array<string> ensemblGeneIds;
         float mafWgs10k;
 

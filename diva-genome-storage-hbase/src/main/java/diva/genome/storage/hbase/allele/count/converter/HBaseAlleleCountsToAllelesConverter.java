@@ -5,11 +5,10 @@ import diva.genome.storage.hbase.allele.count.AbstractHBaseAlleleCountsConverter
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.models.alleles.avro.AlleleCount;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
 import org.apache.commons.lang.StringUtils;
 import org.opencb.biodata.models.variant.Variant;
-import org.opencb.biodata.models.variant.avro.Score;
-import org.opencb.biodata.models.variant.avro.VariantAnnotation;
-import org.opencb.biodata.models.variant.avro.VariantType;
+import org.opencb.biodata.models.variant.avro.*;
 import org.opencb.biodata.models.variant.stats.VariantStats;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
@@ -55,13 +54,34 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
                 .avro.VariantStats.newBuilder();
         builder.setRefAlleleCount(impl.getRefAlleleCount());
         builder.setAltAlleleCount(impl.getAltAlleleCount());
-        builder.setGenotypesCount(impl.getGenotypesCount().entrySet().stream()
-                .collect(toMap(e -> e.getKey().toGenotypeString(), e -> e.getValue())));
+        Map<String, Integer> gtCounts = impl.getGenotypesCount().entrySet().stream()
+                .collect(toMap(e -> e.getKey().toGenotypeString(), e -> e.getValue()));
+        builder.setGenotypesCount(gtCounts);
         builder.setMaf(impl.getMaf());
         builder.setMgf(impl.getMgf());
         builder.setMafAllele(impl.getMafAllele());
         builder.setNumSamples(impl.getNumSamples());
+        if (val.getHw() != null && val.getHw().getPValue() != null) {
+            builder.setHwe(val.getHw().getPValue().floatValue());
+        } else {
+            builder.setHwe((float) calcHw(gtCounts));
+        }
         return builder.build();
+    }
+
+    private double calcHw(Map<String, Integer> gtCounts) {
+        int aa = gtCounts.getOrDefault("1/1", 0);
+        int ab = gtCounts.getOrDefault("0/1", 0);
+        int bb = gtCounts.getOrDefault("0/0", 0);
+        if (aa > bb) { // aa should be rare allele
+            int tmp = bb;
+            bb = aa;
+            aa = tmp;
+        }
+        if ((aa + ab + bb)  < 1) {
+            return -1;
+        }
+        return HardyWeinbergCalculation.hwCalculate(aa, ab, bb);
     }
 
     @Override
@@ -93,7 +113,7 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
                     .filter(s -> s.getSource().equals("cadd_scaled"))
                     .mapToDouble(Score::getScore).max();
             if (max.isPresent()) {
-                filled.setCaddScaledMax((float) max.getAsDouble());
+                filled.setCaddScaled((float) max.getAsDouble());
             }
         }
     }
@@ -158,8 +178,6 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
                 .setChromosome(variant.getChromosome())
                 .setStart(variant.getStart())
                 .setEnd(variant.getEnd())
-                .setLengthReference(variant.getLengthReference())
-                .setLengthVariant(Math.max(variant.getLength(), variant.getLengthAlternate()))
                 .setReference(variant.getReference())
                 .setAlternate(variant.getAlternate())
                 .setType(getType(variant));
