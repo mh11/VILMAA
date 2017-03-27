@@ -26,8 +26,12 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
     private AlleleRegionStore store;
 
     public AlleleRegionCalculator(String studyId, Map<String, Integer> sampleNameToSampleId, int start, int endInclusive) {
-        super(start, endInclusive, studyId, sampleNameToSampleId, true);
-        this.store = new AlleleRegionStore(start, endInclusive);
+        this(studyId, sampleNameToSampleId, new AlleleRegionStore(start, endInclusive));
+    }
+
+    public AlleleRegionCalculator(String studyId, Map<String, Integer> sampleNameToSampleId, AlleleRegionStore store) {
+        super(store.getTargetRegion().getStart(), store.getTargetRegion().getEnd(), studyId, sampleNameToSampleId, true);
+        this.store = store;
     }
 
     public AlleleRegionStore getStore() {
@@ -49,7 +53,7 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
             AlleleInfo refAllele = alleleCount.getOrDefault(REF_IDX, new AlleleInfo(0, 0));
             for (Map.Entry<Integer, AlleleInfo> entry : alleleCount.entrySet()) {
                 AlleleInfo currInfo = entry.getValue();
-                currInfo.setSampleId(sampleId);
+                currInfo.addSampleId(sampleId);
                 currInfo.setPass(isPass);
                 Integer alleleId = entry.getKey();
                 currInfo.setId(buildRefAlt(variant, secondaryAlternates, alleleId));
@@ -74,7 +78,7 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
                 AlleleInfo fillInfo = new AlleleInfo(fillRefCount, currInfo.getDepth());
                 fillInfo.setType(VariantType.NO_VARIATION);
                 fillInfo.setPass(isPass);
-                fillInfo.setSampleId(sampleId);
+                fillInfo.addSampleId(sampleId);
                 fillInfo.setId(REFERENCE_ALLELE);
                 if (vMin != min) {
                     positionInfo.addInfo(sampleId, new RegionImpl<>(fillInfo, Math.min(vMin, min), Math.max(vMin, min) - 1));
@@ -96,23 +100,31 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
 
     @Override
     public Map<Integer, Map<String, AlleleCountPosition>> buildVariantMap() {
+        return buildVariantMap(this.region);
+    }
+
+    public Map<Integer, Map<String, AlleleCountPosition>> buildVariantMap(Region target) {
         Map<Integer, Map<String, AlleleCountPosition>> map = new HashMap<>();
-        this.store.getVariation(r -> {
+        this.store.getVariation(target, r -> {
             map.computeIfAbsent(r.getStart(), k -> new HashMap<>())
                     .computeIfAbsent(r.getData().getIdString(), k -> new AlleleCountPosition())
                     .getAlternate().computeIfAbsent(r.getData().getCount(), k -> new ArrayList<>())
-                    .add(r.getData().getSampleId());
+                    .addAll(r.getData().getSampleIds());
         });
         return map;
     }
 
     @Override
     public Map<Integer, AlleleCountPosition> buildReferenceMap() {
+        return buildReferenceMap(this.region);
+    }
+
+    public Map<Integer, AlleleCountPosition> buildReferenceMap(Region target) {
         Map<Integer, AlleleCountPosition> map = new HashMap<>();
-        this.store.getReference(r -> {
+        this.store.getReference(target, r -> {
             int count = r.getData().getCount();
-            int start = Math.max(this.region.getStart(), r.getStart());
-            int end = Math.min(this.region.getEnd(), r.getMaxPosition());
+            int start = Math.max(target.getStart(), r.getStart());
+            int end = Math.min(target.getEnd(), r.getMaxPosition());
 
             if (r.getData().getType().equals(VariantType.INSERTION)) {
                 count = (count * -1) + NO_CALL;
@@ -120,21 +132,21 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
             for (int i = start; i <= end; i++) {
                 map.computeIfAbsent(i, k -> new AlleleCountPosition())
                         .getReference().computeIfAbsent(count, k -> new ArrayList<>())
-                        .add(r.getData().getSampleId());
+                        .addAll(r.getData().getSampleIds());
             }
         });
-        this.store.getNocall(r -> {
-            int start = Math.max(this.region.getStart(), r.getStart());
-            int end = Math.min(this.region.getEnd(), r.getEnd());
+        this.store.getNocall(target, r -> {
+            int start = Math.max(target.getStart(), r.getStart());
+            int end = Math.min(target.getEnd(), r.getEnd());
             for (int i = start; i <= end; i++) {
                 map.computeIfAbsent(i, k -> new AlleleCountPosition())
                         .getReference().computeIfAbsent(NO_CALL, k -> new ArrayList<>())
-                        .add(r.getData().getSampleId());
+                        .addAll(r.getData().getSampleIds());
             }
         });
-        this.store.getVariation(r -> {
-            int start = Math.max(this.region.getStart(), r.getStart());
-            int end = Math.min(this.region.getEnd(), r.getMaxPosition());
+        this.store.getVariation(target, r -> {
+            int start = Math.max(target.getStart(), r.getStart());
+            int end = Math.min(target.getEnd(), r.getMaxPosition());
             String id = r.getData().getIdString();
             if (r.getData().getType().equals(VariantType.SNV)) {
                 id = r.getData().getId()[1]; // ALT as id
@@ -152,7 +164,7 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
                 map.computeIfAbsent(i, k -> new AlleleCountPosition())
                         .getAltMap().computeIfAbsent(id, k -> new HashMap<>())
                         .computeIfAbsent(r.getData().getCount(), k -> new ArrayList<>())
-                        .add(r.getData().getSampleId());
+                        .addAll(r.getData().getSampleIds());
             }
         });
         map.forEach((k, acp) -> {
@@ -165,8 +177,14 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
             count.getNotPass().addAll(getNotPass(pos));
             count.getPass().addAll(getPass(pos));
         });
+
+        map.forEach((pos, count) -> {
+            count.getReference().remove(2); // remove hom_ref calls (compatibility)
+        });
         return map;
     }
+
+
 
     /**
      * Find duplicated entries an add allele count for these
@@ -210,9 +228,9 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
         // not efficient, but will do for compatibility
         Set<Integer> pass = new HashSet<>();
         Consumer<Region<AlleleInfo>> passFunction = r -> {
-            Integer sampleId = r.getData().getSampleId();
+            Set<Integer> sampleId = r.getData().getSampleIds();
             if (r.getData().isPass()) {
-                pass.add(sampleId);
+                pass.addAll(sampleId);
             }
         };
         this.store.getVariation(position, passFunction);
@@ -225,8 +243,11 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
     public Set<Integer> getNotPass(Integer position) {
         Set<Integer> notPass = new HashSet<>();
         Consumer<Region<AlleleInfo>> notPassFunction = r -> {
+            if (r.getStart() > position.intValue()) {
+                return; // INDEL issue
+            }
             if (!r.getData().isPass()) {
-                notPass.add(r.getData().getSampleId());
+                notPass.addAll(r.getData().getSampleIds());
             }
         };
         this.store.getVariation(position, notPassFunction);
@@ -248,7 +269,7 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
         // build up missing regions
         IntStream.range((int) startPos, (int) nextStartPos).forEach(pos -> {
             HashSet<Integer> sids = new HashSet<>(sidsOrig);
-            this.store.getInfos(pos, r -> sids.remove(r.getData().getSampleId()));
+            this.store.getInfos(pos, r -> sids.removeAll(r.getData().getSampleIds()));
             sids.forEach(s -> sidToMissing.computeIfAbsent(s, (k) -> new ArrayList<>()).add(pos));
         });
         // add missing regions.

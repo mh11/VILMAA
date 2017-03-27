@@ -1,9 +1,8 @@
 package diva.genome.storage.hbase.allele.count;
 
-import diva.genome.storage.hbase.allele.count.converter.AllelCountToHBaseSingleConverter;
-import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseAppendConverter;
 import diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator;
 import diva.genome.storage.hbase.allele.count.region.AlleleRegionCalculator;
+import diva.genome.storage.hbase.allele.count.region.AlleleRegionStoreToHBaseAppendConverter;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Append;
@@ -32,7 +31,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
     private final AtomicBoolean asyncPut = new AtomicBoolean(false);
     private final AtomicBoolean asyncFinished = new AtomicBoolean(false);
     private volatile Future<String> submitFuture;
-    private volatile AlleleCountToHBaseAppendConverter converter;
+    private volatile AlleleRegionStoreToHBaseAppendConverter converter;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -47,14 +46,14 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
                     f -> context.getCounter(COUNTER_GROUP_NAME, "async-received").increment(f.size()),
                     f -> context.getCounter(COUNTER_GROUP_NAME, "async-submitted").increment(f.size()));
         }
-        converter = new AllelCountToHBaseSingleConverter(getHelper().getColumnFamily(), getHelper().getStudyId() + "");
+        converter = new AlleleRegionStoreToHBaseAppendConverter(getHelper().getColumnFamily(), getHelper().getStudyId());
     }
 
     public void setAsyncPut(boolean asyncPut) {
         this.asyncPut.set(asyncPut);
     }
 
-    public void setConverter(AlleleCountToHBaseAppendConverter converter) {
+    public void setConverter(AlleleRegionStoreToHBaseAppendConverter converter) {
         this.converter = converter;
     }
 
@@ -211,7 +210,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
             int nextStartPos = (int) ctx.getNextStartPos();
 
             String studyId = Integer.valueOf(getStudyConfiguration().getStudyId()).toString();
-            AlleleCalculator alleleCalculator = new AlleleRegionCalculator(studyId, this.sampleNameToSampleId, startPos, nextStartPos - 1);
+            AlleleRegionCalculator alleleCalculator = new AlleleRegionCalculator(studyId, this.sampleNameToSampleId, startPos, nextStartPos - 1);
 //                    new HBaseAlleleCalculator(studyId, this.sampleNameToSampleId, startPos, nextStartPos - 1);
 
             getLog().info("Read Archive ...");
@@ -254,7 +253,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
         }
     }
 
-    private Collection<Append> packageAlleleCounts(String chromosome, String studyId, AlleleCalculator alleleCalculator) {
-        return converter.convert(chromosome, alleleCalculator);
+    private Collection<Append> packageAlleleCounts(String chromosome, String studyId, AlleleRegionCalculator alleleCalculator) {
+        return converter.convert(chromosome, alleleCalculator.getStore());
     }
 }

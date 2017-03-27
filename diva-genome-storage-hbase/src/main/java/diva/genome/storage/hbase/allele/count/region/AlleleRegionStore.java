@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Store and collates {@link diva.genome.storage.hbase.allele.count.AlleleInfo} for a region in memory and allows specific queries.
@@ -22,7 +24,11 @@ public class AlleleRegionStore {
     private final List<Region<AlleleInfo>> variation = new ArrayList<>();
 
     public AlleleRegionStore(Integer start, Integer endInclusive) {
-        this.targetRegion = new RegionImpl(StringUtils.EMPTY, start, endInclusive);
+        this(new RegionImpl(StringUtils.EMPTY, start, endInclusive));
+    }
+
+    public AlleleRegionStore(Region targetRegion) {
+        this.targetRegion = targetRegion;
     }
 
     public Region getTargetRegion() {
@@ -50,6 +56,28 @@ public class AlleleRegionStore {
         }
     }
 
+    public void getAll(int position, Consumer<Region<AlleleInfo>> consumer) {
+        getAll(new PointRegion(null, position), consumer);
+    }
+
+    public void getAll(Region region, Consumer<Region<AlleleInfo>> consumer) {
+        getReference(region, consumer);
+        getNocall(region, consumer);
+        getVariation(region, consumer);
+    }
+
+    public void getAll(Consumer<Region<AlleleInfo>> consumer) {
+        getReference(consumer);
+        getNocall(consumer);
+        getVariation(consumer);
+    }
+
+    public List<Region<AlleleInfo>> getAll(Region target) {
+        List<Region<AlleleInfo>> lst = new ArrayList<>();
+        getAll(target, v -> lst.add(v));
+        return lst;
+    }
+
     public void getReference(Consumer<Region<AlleleInfo>> consumer) {
         reference.stream().forEach(consumer);
     }
@@ -71,6 +99,12 @@ public class AlleleRegionStore {
         reference.stream().filter(r -> r.overlap(target)).forEach(consumer);
     }
 
+    public List<Region<AlleleInfo>> getReference(Region target) {
+        List<Region<AlleleInfo>> lst = new ArrayList<>();
+        getReference(target, v -> lst.add(v));
+        return lst;
+    }
+
     public void getNocall(int position, Consumer<Region<AlleleInfo>> consumer) {
         getNocall(new PointRegion(null, position), consumer);
     }
@@ -79,12 +113,24 @@ public class AlleleRegionStore {
         noCall.stream().filter(r -> r.overlap(target)).forEach(consumer);
     }
 
+    public List<Region<AlleleInfo>> getNocall(Region target) {
+        List<Region<AlleleInfo>> lst = new ArrayList<>();
+        getNocall(target, v -> lst.add(v));
+        return lst;
+    }
+
     public void getVariation(int position, Consumer<Region<AlleleInfo>> consumer) {
         getVariation(new PointRegion(null, position), consumer);
     }
 
     public void getVariation(Region target, Consumer<Region<AlleleInfo>> consumer) {
         variation.stream().filter(r -> r.overlap(target)).forEach(consumer);
+    }
+
+    public List<Region<AlleleInfo>> getVariation(Region target) {
+        List<Region<AlleleInfo>> lst = new ArrayList<>();
+        getVariation(target, v -> lst.add(v));
+        return lst;
     }
 
     public void getInfos(int position, Consumer<Region<AlleleInfo>> consumer) {

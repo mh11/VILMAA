@@ -28,15 +28,14 @@ public abstract class Region<T> {
     }
 
     public boolean overlap(int position) {
-        return position >= getStart() && position <= getMaxPosition();
+        return position >=getMinPosition() && position <= getMaxPosition();
     }
 
     public boolean overlap(Region other) {
-        return this.getStart() <= other.getMaxPosition() && other.getStart() <= this.getMaxPosition();
+        return this.getMinPosition() <= other.getMaxPosition() && other.getMinPosition() <= this.getMaxPosition();
     }
 
     public boolean coveredBy(Region other) {
-        return other.getStart() <= this.getStart() && other.getEnd() >= this.getEnd();
+        return other.getMinPosition() <= this.getMinPosition() && other.getMaxPosition() >= this.getMaxPosition();
     }
-
 }

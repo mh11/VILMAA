@@ -2,9 +2,11 @@ package diva.genome.storage.hbase.allele.count.region;
 
 import com.google.protobuf.MessageLite;
 import diva.genome.storage.hbase.allele.model.protobuf.*;
-import diva.genome.storage.hbase.allele.model.protobuf.AlleleRegionStore.Builder;
+import diva.genome.storage.hbase.allele.model.protobuf.AlleleRegion.Builder;
 import diva.genome.util.Region;
+import diva.genome.util.RegionImpl;
 import org.apache.hadoop.hbase.client.Append;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.phoenix.query.QueryConstants;
 import org.apache.phoenix.schema.types.PUnsignedInt;
 import org.apache.phoenix.schema.types.PVarchar;
@@ -18,21 +20,27 @@ import java.util.*;
  * Converts an in-memory {@link AlleleRegionStore} to an append object for HBase.
  * Created by mh719 on 19/03/2017.
  */
-public class AlleleRegionStoreToAppendConverter {
-    protected static final byte[] DEFAULT_QUALIFIER = {1};
+public class AlleleRegionStoreToHBaseAppendConverter {
     protected static final int ARS_NO_VARIANT = 0;
     protected static final int ARS_SNV = 1;
     protected static final int ARS_MNV = 2;
     protected static final int ARS_INS = 3;
     protected static final int ARS_DEL = 4;
+    protected static final int DEFAULT_REGION_SIZE = 100;
     private volatile ByteArrayOutputStream bout;
     private final byte[] columnFamily;
-    private byte[] qualifier;
+    private final byte[] columnName;
+    private volatile int regionSize;
 
-    public AlleleRegionStoreToAppendConverter(byte[] columnFamily) {
+    public AlleleRegionStoreToHBaseAppendConverter(byte[] columnFamily, int studyId) {
         this.columnFamily = columnFamily;
         this.bout = new ByteArrayOutputStream();
-        qualifier = DEFAULT_QUALIFIER;
+        this.columnName = Bytes.toBytes(studyId);
+        regionSize = DEFAULT_REGION_SIZE;
+    }
+
+    public void setRegionSize(int regionSize) {
+        this.regionSize = regionSize;
     }
 
     public byte[] toBytes(MessageLite msg) {
@@ -50,30 +58,43 @@ public class AlleleRegionStoreToAppendConverter {
     }
 
     public Collection<Append> convert(String chromosome, AlleleRegionStore store) {
+        List<Append> appendList = new ArrayList<>();
         Region targetRegion = store.getTargetRegion();
-        Builder builder = diva.genome.storage.hbase.allele.model.protobuf.AlleleRegionStore.newBuilder();
+        for (int i = targetRegion.getStart(); i < targetRegion.getEnd(); i += getRegionSize()) {
+            appendList.addAll(convert(new RegionImpl(targetRegion.getData(), i, i+getRegionSize() - 1), chromosome, store));
+        }
+        return appendList;
+    }
+
+    public int getRegionSize() {
+        return regionSize;
+    }
+
+    public Collection<Append> convert(Region targetRegion, String chromosome, AlleleRegionStore store) {
+        Builder builder = diva.genome.storage.hbase.allele.model.protobuf.AlleleRegion.newBuilder();
         builder.putAllNoCall(buildNoCall(targetRegion, store));
         builder.putAllReference(buildRefCall(targetRegion, store));
         builder.putAllVariation(buildVarCall(targetRegion, store));
 
         byte[] bytes = toBytes(builder.build());
         Append append = new Append(buildRowKey(chromosome, targetRegion.getMinPosition()));
-        append.add(getColumnFamily(), qualifier, bytes);
+        append.add(getColumnFamily(), columnName, bytes);
         return Collections.singleton(append);
     }
 
     private Map<Boolean,ARSEntry> buildVarCall(Region targetRegion, AlleleRegionStore store) {
-        Map<Boolean,Map<VariantType, Map<Integer, Map<Integer, Map<Integer, Map<Integer, List<Integer>>>>>>> map = new HashMap<>();
+        Map<Boolean,Map<VariantType, Map<Integer, Map<Integer, Map<Integer, Map<String, List<Integer>>>>>>> map = new HashMap<>();
         store.getVariation( targetRegion, r -> {
             map.computeIfAbsent(r.getData().isPass(), k -> new HashMap<>())
                     .computeIfAbsent(r.getData().getType(), k -> new HashMap<>())
                     .computeIfAbsent(r.getData().getCount(), k -> new HashMap<>())
                     .computeIfAbsent(r.getData().getDepth(), k -> new HashMap<>())
-                    .computeIfAbsent(buildStart(r.getStart(), targetRegion.getStart()), k -> new HashMap<>())
-                    .computeIfAbsent( r.getStart() == r.getEnd() ? 0 : r.getEnd() - targetRegion.getStart(), k -> new ArrayList<>())
-                    .add(r.getData().getSampleId());
+                    .computeIfAbsent(r.getStart() - targetRegion.getStart(), k -> new HashMap<>())
+//                    .computeIfAbsent( r.getStart() == r.getEnd() ? 0 : r.getEnd() - targetRegion.getStart(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getData().getIdString(), k -> new ArrayList<>())
+                    .addAll(r.getData().getSampleIds());
         });
-        return buildArs(map);
+        return buildArsVar(map);
     }
 
     private Map<Boolean,ARSEntry> buildNoCall(Region targetRegion, AlleleRegionStore store) {
@@ -85,7 +106,7 @@ public class AlleleRegionStoreToAppendConverter {
                     .computeIfAbsent(r.getData().getDepth(), k -> new HashMap<>())
                     .computeIfAbsent(buildStart(r.getStart(), targetRegion.getStart()), k -> new HashMap<>())
                     .computeIfAbsent(buildEnd(r.getEnd(), targetRegion.getStart(), targetRegion.getEnd()), k -> new ArrayList<>())
-                    .add(r.getData().getSampleId());
+                    .addAll(r.getData().getSampleIds());
         });
         return buildArs(map);
     }
@@ -99,9 +120,42 @@ public class AlleleRegionStoreToAppendConverter {
                     .computeIfAbsent(buildStart(r.getStart(), targetRegion.getStart()), k -> new HashMap<>())
                     .computeIfAbsent(buildEnd(r.getEnd(), targetRegion.getStart(), targetRegion.getEnd()), k -> new HashMap<>())
                     .computeIfAbsent(r.getData().getDepth(), k -> new ArrayList<>())
-                    .add(r.getData().getSampleId());
+                    .addAll(r.getData().getSampleIds());
         });
         return buildArs(map);
+    }
+
+
+    private Map<Boolean, ARSEntry> buildArsVar(Map<Boolean,Map<VariantType, Map<Integer, Map<Integer, Map<Integer, Map<String, List<Integer>>>>>>> map) {
+        Map<Boolean,ARSEntry> retmap = new HashMap<>();
+        map.forEach((bool, e1) -> {
+            ARSEntry.Builder b1 = ARSEntry.newBuilder();
+            e1.forEach((type, e2) -> {
+                ARSEntry.Builder b2 = ARSEntry.newBuilder();
+                e2.forEach((k3, e3) -> {
+                    ARSEntry.Builder b3 = ARSEntry.newBuilder();
+//                    e3.forEach((k4, e4) -> {
+//                        ARSEntry.Builder b4 = ARSEntry.newBuilder();
+                        e3.forEach((k5, e5) -> {
+                            ARSEntry.Builder b5 = ARSEntry.newBuilder();
+                            e5.forEach((k6, e6) -> {
+                                ARSEntry.Builder b6 = ARSEntry.newBuilder();
+                                e6.forEach((k7,e7) -> {
+                                    b6.putVars(k7, ARSEntry.newBuilder().addAllSampleIds(e7).build());
+                                });
+                                b5.putEntry(k6, b6.build());
+                            });
+                            b3.putEntry(k5, b5.build());
+                        });
+//                        b3.putEntry(k5, b5.build());
+//                    });
+                    b2.putEntry(k3, b3.build());
+                });
+                b1.putEntry(encodeType(type), b2.build());
+            });
+            retmap.put(bool, b1.build());
+        });
+        return retmap;
     }
 
     private Map<Boolean, ARSEntry> buildArs(Map<Boolean,Map<VariantType, Map<Integer, Map<Integer, Map<Integer, Map<Integer, List<Integer>>>>>>> map) {
@@ -144,11 +198,11 @@ public class AlleleRegionStoreToAppendConverter {
     }
 
     private int buildEnd(int regionEnd, int start, int end) {
-        int rend = regionEnd - start; // store relative end
-        if (regionEnd >= end) {
+        int rend = regionEnd - end; // store relative end going backwards
+        if (rend >= 0) {
             rend = 0; // goes beyond end
         }
-        return rend;
+        return Math.abs(rend);
     }
 
     private int buildStart(int regionStart, int start) {

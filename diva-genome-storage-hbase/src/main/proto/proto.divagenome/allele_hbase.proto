@@ -47,9 +47,10 @@ enum AlleleType {
 message ARSEntry {
     map<sint32, ARSEntry> entry = 1;
     repeated uint32 sampleIds = 2;
+    map<string, ARSEntry> vars = 3;
 }
 
-message AlleleRegionStore {
+message AlleleRegion {
     map<bool, ARSEntry> reference = 1;
     map<bool, ARSEntry> noCall = 2;
     map<bool, ARSEntry> variation = 3;

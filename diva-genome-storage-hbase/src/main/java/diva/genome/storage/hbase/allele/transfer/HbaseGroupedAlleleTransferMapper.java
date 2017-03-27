@@ -3,6 +3,7 @@ package diva.genome.storage.hbase.allele.transfer;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAppendGroupedToAlleleCountConverter;
+import diva.genome.storage.hbase.allele.count.position.HBaseAlleleTransfer;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hbase.client.Put;
@@ -10,14 +11,11 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.opencb.biodata.models.variant.Variant;
-import org.opencb.biodata.models.variant.avro.VariantType;
 import org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableMapReduce;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -26,17 +24,18 @@ import java.util.stream.Collectors;
 public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapReduce {
     private byte[] studiesRow;
     protected volatile Map<Integer, Map<Integer, Integer>> deletionEnds = new HashMap<>();
-    protected volatile AlleleCombiner alleleCombiner;
     protected AlleleCountToHBaseConverter converter;
     protected HBaseAppendGroupedToAlleleCountConverter groupedConverter;
+    private HBaseAlleleTransfer hBaseAlleleTransfer;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        alleleCombiner = new AlleleCombiner(new HashSet<>(this.getIndexedSamples().values()));
+        HashSet<Integer> sampleIds = new HashSet<>(this.getIndexedSamples().values());
         String study = Integer.valueOf(getStudyConfiguration().getStudyId()).toString();
         converter = new AlleleCountToHBaseConverter(getHelper().getColumnFamily(), study);
         groupedConverter = new HBaseAppendGroupedToAlleleCountConverter(getHelper().getColumnFamily());
+        hBaseAlleleTransfer = new HBaseAlleleTransfer(sampleIds);
     }
 
     public void setStudiesRow(byte[] studiesRow) {
@@ -68,10 +67,10 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
         return new Variant(chromosome, position, ref, alt);
     }
 
-    protected List<Pair<Variant, AlleleCountPosition>> extractToVariants(String chrom, Integer pos,
+    protected List<Pair<AlleleCountPosition, Variant>> extractToVariants(String chrom, Integer pos,
                                                                          Map<String, AlleleCountPosition> alts)  {
-        List<Pair<Variant, AlleleCountPosition>> pairs = new ArrayList<>();
-        alts.forEach((varid, cnt) -> pairs.add(new ImmutablePair<>(extractVariant(chrom, pos, varid), cnt)));
+        List<Pair<AlleleCountPosition, Variant>> pairs = new ArrayList<>();
+        alts.forEach((varid, cnt) -> pairs.add(new ImmutablePair<>(cnt, extractVariant(chrom, pos, varid))));
         return pairs;
     }
 
@@ -105,6 +104,7 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
                 }
                 Pair<String, Integer> pair = groupedConverter.extractRegion(currentKey.copyBytes());
                 if (!pair.getLeft().equals(chromosome)) {
+                    hBaseAlleleTransfer.resetNewChromosome();
                     chromosome = pair.getLeft();
                     clearRegionOverlap();
                 }
@@ -119,9 +119,9 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
                     checkDeletionOverlapMap(position);
                     Pair<AlleleCountPosition, Map<String, AlleleCountPosition>> refAndAlts =
                             regionData.get(position);
-                    List<Pair<Variant, AlleleCountPosition>> variants = extractToVariants(pair.getLeft(), position,
+                    List<Pair<AlleleCountPosition, Variant>> variants = extractToVariants(pair.getLeft(), position,
                             refAndAlts.getRight());
-                    processVariants(refAndAlts.getLeft(), variants, submitFunction);
+                    hBaseAlleleTransfer.process(refAndAlts.getLeft(), variants, (v, a) -> toPut(v, a));
                 }
 
             }
@@ -139,89 +139,9 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
         old.forEach(o -> deletionEnds.remove(o));
     }
 
-    protected void processVariants(AlleleCountPosition refBean, List<Pair<Variant, AlleleCountPosition>> variants,
-                                 Consumer<Put> submitFunction) {
-
-
-        Collections.sort(variants, (a, b) -> {
-            int cmp = Integer.compare(
-                    Math.abs(a.getLeft().getStart() - a.getLeft().getEnd()),
-                    Math.abs(b.getLeft().getStart() - b.getLeft().getEnd()));
-            if (cmp == 0) {
-                cmp = a.getLeft().getEnd().compareTo(b.getLeft().getEnd());
-            }
-            if (cmp == 0) {
-                cmp = b.getLeft().getLength().compareTo(a.getLeft().getLength());
-            }
-            return cmp;
-        });
-
-        // Create Overlap Index
-        Consumer<Pair<Variant, AlleleCountPosition>> registerOverlapFunction = pair -> {
-            // process all variants as normal
-            Variant variant = pair.getLeft();
-            // update indel covered regions
-            addRegionOverlapIfRequired(variant, pair.getRight());
-        };
-
-        // process data
-        Consumer<Pair<Variant, AlleleCountPosition>> combineFunction = pair -> {
-            // process all variants as normal
-            Variant variant = pair.getLeft();
-            Put putNew = newTransfer(variant, refBean, pair.getRight());
-            submitFunction.accept(putNew);
-        };
-
-        Predicate<Pair<Variant, AlleleCountPosition>> isIndelFunction = p -> {
-            Variant var = p.getLeft();
-            return var.getType().equals(VariantType.INDEL) && var.getStart() > var.getEnd();
-        };
-        Predicate<Pair<Variant, AlleleCountPosition>> isNotIndelFunction = i -> !isIndelFunction.test(i);
-
-        // Only INDELs first -> There is no overlap with Deletions starting at same position
-        variants.stream().filter(isIndelFunction).forEach(registerOverlapFunction);
-        variants.stream().filter(isIndelFunction).forEach(combineFunction);
-
-        // all the others
-        variants.stream().filter(isNotIndelFunction).forEach(registerOverlapFunction);
-        variants.stream().filter(isNotIndelFunction).forEach(combineFunction);
-    }
-
-
-    protected Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
-        this.alleleCombiner.combine(variant, from, to, this.deletionEnds);
+    private Put toPut(Variant variant, AlleleCountPosition to) {
         return this.converter.convertPut(variant.getChromosome(), variant.getStart(),
                 variant.getReference(), variant.getAlternate(), variant.getType(), to);
-    }
-
-
-    protected void addRegionOverlapIfRequired(Variant variant, AlleleCountPosition toBean) {
-        BiConsumer<Map<Integer, Map<Integer, Integer>>, AlleleCountPosition> overlapFunction = (map, bean) -> {
-            Map<Integer, Integer> endMap = map.computeIfAbsent(variant.getEnd(), f -> new HashMap<>());
-            bean.getAlternate().forEach((position, ids) -> ids.forEach(sid -> {
-                endMap.put(sid, endMap.getOrDefault(sid, 0) + position);
-            }));
-        };
-
-        switch (variant.getType()) {
-            case SNV:
-            case SNP:
-                break; // do nothing
-            case MNP:
-            case MNV:
-            case INDEL:
-            case INSERTION:
-            case DELETION:
-                overlapFunction.accept(this.deletionEnds, toBean);
-                break;
-            default:
-                throw new IllegalStateException("Currently not support: " + variant.getType());
-
-        }
-    }
-
-    public void setAlleleCombiner(AlleleCombiner alleleCombiner) {
-        this.alleleCombiner = alleleCombiner;
     }
 
     public void setConverter(AlleleCountToHBaseConverter converter) {

@@ -47,7 +47,7 @@ public class RegionTest {
 
         Region insertion = new RegionImpl("x", 100, 99);
         assertFalse(insertion.overlap(98));
-        assertFalse(insertion.overlap(99));
+        assertTrue(insertion.overlap(99));
         assertTrue(insertion.overlap(100));
         assertFalse(insertion.overlap(101));
 

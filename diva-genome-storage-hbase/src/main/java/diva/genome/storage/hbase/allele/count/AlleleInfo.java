@@ -3,46 +3,53 @@ package diva.genome.storage.hbase.allele.count;
 import org.apache.commons.lang3.StringUtils;
 import org.opencb.biodata.models.variant.avro.VariantType;
 
-import java.util.Arrays;
+import java.util.*;
 
 /**
  * Bean to hold sample specific allele information
  * Created by mh719 on 17/03/2017.
  */
 public class AlleleInfo {
+    protected static final String[] NO_CALL_ALLELE = {"."};
+    protected static final String[] REFERENCE_ALLELE = new String[0];
 
-    private boolean pass;
-    private int count;
-    private int depth;
-    private VariantType type;
-    private String[] id;
-    private Integer sampleId;
-
-
-    public AlleleInfo() {
-
-    }
+    private volatile boolean pass;
+    private volatile int count;
+    private volatile int depth;
+    private volatile VariantType type;
+    private volatile String[] id;
+    private volatile Set<Integer> sampleIds;
 
     public AlleleInfo(int count, int depth) {
-        this.count = count;
-        this.depth = depth;
+        this(count, depth, Collections.emptyList(), NO_CALL_ALLELE, VariantType.NO_VARIATION, false);
     }
 
-    public AlleleInfo(int count, int depth, Integer sampleId, String[] id, VariantType type, boolean pass) {
-        this.pass = pass;
+    public AlleleInfo(int count, int depth, Collection<Integer> sampleIds, String[] id, VariantType type, boolean pass) {
         this.count = count;
         this.depth = depth;
         this.type = type;
         this.id = id;
-        this.sampleId = sampleId;
+        this.pass = pass;
+        if (!Objects.isNull(sampleIds) && !sampleIds.isEmpty()) {
+            this.sampleIds = new HashSet<>(sampleIds);
+        } else {
+            this.sampleIds = new HashSet<>();
+        }
     }
 
-    public void setSampleId(Integer sampleId) {
-        this.sampleId = sampleId;
+    public AlleleInfo(int count, int depth, Integer sampleId, String[] id, VariantType type, boolean pass) {
+        this(count, depth, null == sampleId ? Collections.emptyList() : Collections.singleton(sampleId), id, type, pass);
     }
 
-    public Integer getSampleId() {
-        return sampleId;
+    public void addSampleId(Integer sampleId) {
+        this.sampleIds.add(sampleId);
+    }
+    public void setSampleIds(Collection<Integer> sampleIds) {
+        this.sampleIds = new HashSet<>(sampleIds);
+    }
+
+    public Set<Integer> getSampleIds() {
+        return sampleIds;
     }
 
     public void setPass(boolean pass) {
@@ -108,5 +115,26 @@ public class AlleleInfo {
 
     public static String buildVariantId(String prefix, String ref, String alt) {
         return prefix + ref + "_" + alt;
+    }
+
+    public static String[] parseVariantId(String vid) {
+        switch (vid.length()) {
+            case 0: return REFERENCE_ALLELE;
+            case 1: return NO_CALL_ALLELE;
+            default:
+                String[] arr = vid.split("_", 2);
+                if (arr.length != 2) {
+                    throw new IllegalStateException("Not supported: " + vid);
+                }
+                return arr;
+        }
+    }
+
+    public static String[] getNoCallAllele() {
+        return NO_CALL_ALLELE;
+    }
+
+    public static String[] getReferenceAllele() {
+        return REFERENCE_ALLELE;
     }
 }
