@@ -12,6 +12,8 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
+ * Extract variants and transfer allele count to variant table.
+ * Extracted logic from mapper.
  * Created by mh719 on 21/03/2017.
  */
 public class HBaseAlleleTransfer {
