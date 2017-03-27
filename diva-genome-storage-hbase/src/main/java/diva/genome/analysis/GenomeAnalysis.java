@@ -105,7 +105,7 @@ public class GenomeAnalysis {
                     /* either nonsense (no CADD score filter) */
                     nonsenseConsequenceFilter.test(a, c)
                     /*  or CADD filter && moderate && NOT benign/tolerated */
-                    || (Objects.nonNull(a.getCaddScaledMax()) && a.getCaddScaledMax() >= cadd
+                    || (Objects.nonNull(a.getCaddScaled()) && a.getCaddScaled() >= cadd
                             && moderateConsequenceFilter.test(c)
                             && !BenignFilter.isBenign(c.getProteinVariantAnnotation())
                     )
