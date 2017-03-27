@@ -61,3 +61,4 @@ git.properties
 *.Rproj
 .Rproj.user
 /diva-genome-storage-hbase/src/test/java/diva/genome/storage/hbase/allele/count/HbaseTableMapperTest.java
+/diva-genome-storage-hbase/src/test/java/diva/genome/storage/hbase/allele/count/HbaseTableLocalTest.java
