@@ -71,13 +71,16 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
     }
 
     private double calcHw(Map<String, Integer> gtCounts) {
-        int aa = gtCounts.getOrDefault("0/0", 0);
+        int aa = gtCounts.getOrDefault("1/1", 0);
         int ab = gtCounts.getOrDefault("0/1", 0);
-        int bb = gtCounts.getOrDefault("1/1", 0);
+        int bb = gtCounts.getOrDefault("0/0", 0);
         if (aa > bb) { // aa should be rare allele
             int tmp = bb;
             bb = aa;
             aa = tmp;
+        }
+        if ((aa + ab + bb)  < 1) {
+            return -1;
         }
         return HardyWeinbergCalculation.hwCalculate(aa, ab, bb);
     }
