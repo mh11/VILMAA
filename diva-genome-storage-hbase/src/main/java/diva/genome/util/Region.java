@@ -27,15 +27,56 @@ public abstract class Region<T> {
         return data;
     }
 
+    public boolean sameRegion(Region other) {
+        return this.getStart() == other.getStart() && this.getEnd() == other.getEnd();
+    }
+
     public boolean overlap(int position) {
-        return position >=getMinPosition() && position <= getMaxPosition();
+        return overlap(new PointRegion(null, position));
+    }
+
+    /**
+     * see {@link #overlap(Region, boolean)}
+     */
+    public boolean overlap(int position, boolean insertionAware) {
+        return overlap(new PointRegion(null, position), insertionAware);
     }
 
     public boolean overlap(Region other) {
+        return overlap(other, false);
+    }
+
+    public boolean overlap(Region other, boolean insertionAware) {
+        if (sameRegion(other)) {
+            return true;
+        }
+        if (insertionAware) {
+            return this.getStart() <= other.getMaxPosition() && other.getStart() <= this.getMaxPosition();
+        }
         return this.getMinPosition() <= other.getMaxPosition() && other.getMinPosition() <= this.getMaxPosition();
     }
 
     public boolean coveredBy(Region other) {
         return other.getMinPosition() <= this.getMinPosition() && other.getMaxPosition() >= this.getMaxPosition();
+    }
+
+    /**
+     * Length of region - can be negative in case of end < start. If start == end
+     * @return int length
+     */
+    public int getLength() {
+        int len = getEnd() - getStart();
+        if (len >= 0) {
+            len += 1;
+        }
+        return len;
+    }
+
+    /**
+     * Size of region - always positive. (max position - min position). If start == end, size is 1;
+     * @return int size
+     */
+    public int getCoveredPositions() {
+        return (getMaxPosition() - getMinPosition())+1;
     }
 }

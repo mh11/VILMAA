@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.count.position;
 
 import diva.genome.storage.hbase.allele.count.AlleleCalculator;
+import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.AlleleInfo;
 import diva.genome.util.Region;
 import diva.genome.util.RegionImpl;
@@ -150,6 +151,10 @@ public abstract class AbstractAlleleCalculator implements AlleleCalculator {
         return studyEntry.getFiles().get(0).getAttributes()
                 .getOrDefault(ANNOTATION_FILTER, DEFAULT_ANNOTATION_FILTER_VALUE);
     }
+
+    public abstract AlleleCountPosition buildVariantCount(Integer position, String variant);
+
+    public abstract AlleleCountPosition buildPositionCount(Integer position);
 
 //    static String buildVariantId(String[] refAlt) {
 //        return buildVariantId(StringUtils.EMPTY, refAlt);

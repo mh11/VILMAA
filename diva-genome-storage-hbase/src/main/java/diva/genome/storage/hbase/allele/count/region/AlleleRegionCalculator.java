@@ -4,6 +4,7 @@ import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.AlleleInfo;
 import diva.genome.storage.hbase.allele.count.position.AbstractAlleleCalculator;
 import diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator;
+import diva.genome.util.PointRegion;
 import diva.genome.util.Region;
 import diva.genome.util.RegionImpl;
 import org.opencb.biodata.models.variant.StudyEntry;
@@ -69,22 +70,50 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
                     }
                 }
                 positionInfo.addInfo(sampleId, altReg);
-                int vMin = Math.min(variant.getStart(), variant.getEnd());
-                int min = altReg.getMinPosition();
-                int vMax = Math.max(variant.getStart(), variant.getEnd());
-                int max = altReg.getMaxPosition();
-
+                if (alleleId < 2) {
+                    continue;
+                }
+                // only for Sec Alts - fill reference calls
                 int fillRefCount = refAllele.getCount() + (2 - currInfo.getCount());
+
+
                 AlleleInfo fillInfo = new AlleleInfo(fillRefCount, currInfo.getDepth());
-                fillInfo.setType(VariantType.NO_VARIATION);
                 fillInfo.setPass(isPass);
                 fillInfo.addSampleId(sampleId);
                 fillInfo.setId(REFERENCE_ALLELE);
-                if (vMin != min) {
-                    positionInfo.addInfo(sampleId, new RegionImpl<>(fillInfo, Math.min(vMin, min), Math.max(vMin, min) - 1));
-                }
-                if (vMax != max) {
-                    positionInfo.addInfo(sampleId, new RegionImpl<>(fillInfo, Math.min(vMax, max) + 1, Math.max(vMax, max)));
+                fillInfo.setType(VariantType.DELETION); // most of the time correct (TODO improve)
+
+                // no direct overlap between ALTs
+                if (!altReg.overlap(new RegionImpl(null, variant.getStart(), variant.getEnd()), true)) {
+
+                    if (alleleCount.containsKey(1)) {
+                        // create REF region for First Alt
+                        RegionImpl<AlleleInfo> firstAlt = new RegionImpl<>(new AlleleInfo(fillInfo), variant.getStart(),
+                                variant.getEnd());
+                        AlleleInfo firstInfo = alleleCount.get(1);
+                        firstAlt.getData().setType(firstInfo.getType());
+                        positionInfo.addInfo(sampleId, firstAlt);
+
+                    }
+                    // create REF region for SecAlt
+                    RegionImpl<AlleleInfo> secAlt = new RegionImpl<>(new AlleleInfo(fillInfo), altReg
+                            .getStart(), altReg.getEnd());
+                    secAlt.getData().setType(currInfo.getType());
+                    positionInfo.addInfo(sampleId, secAlt);
+                } else {
+
+                    int vMin = variant.getStart();
+                    int vMax = Math.max(variant.getStart(), variant.getEnd());
+                    int min = altReg.getStart();
+                    int max = altReg.getMaxPosition();
+
+                    if (vMin != min) {
+                        positionInfo.addInfo(sampleId, new RegionImpl<>(fillInfo, Math.min(vMin, min),
+                                Math.max(vMin, min) - 1));
+                    }
+                    if (vMax != max) {
+                        positionInfo.addInfo(sampleId, new RegionImpl<>(fillInfo, Math.min(vMax, max) + 1, Math.max(vMax, max)));
+                    }
                 }
             }
         });
@@ -104,8 +133,17 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
     }
 
     public Map<Integer, Map<String, AlleleCountPosition>> buildVariantMap(Region target) {
+        if (target.getStart() > target.getMinPosition()) {
+            throw new IllegalStateException("Start has to be lower than end. Expected " + target.getStart() + " <= " + target.getEnd());
+        }
         Map<Integer, Map<String, AlleleCountPosition>> map = new HashMap<>();
         this.store.getVariation(target, r -> {
+            if (r.getMaxPosition() < target.getStart()) {
+                return;
+            }
+            if (r.getStart() > target.getEnd()) {
+                return;
+            }
             map.computeIfAbsent(r.getStart(), k -> new HashMap<>())
                     .computeIfAbsent(r.getData().getIdString(), k -> new AlleleCountPosition())
                     .getAlternate().computeIfAbsent(r.getData().getCount(), k -> new ArrayList<>())
@@ -123,6 +161,9 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
         Map<Integer, AlleleCountPosition> map = new HashMap<>();
         this.store.getReference(target, r -> {
             int count = r.getData().getCount();
+            if (!r.overlap(target, true)) {
+                return;
+            }
             int start = Math.max(target.getStart(), r.getStart());
             int end = Math.min(target.getEnd(), r.getMaxPosition());
 
@@ -148,17 +189,16 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
             int start = Math.max(target.getStart(), r.getStart());
             int end = Math.min(target.getEnd(), r.getMaxPosition());
             String id = r.getData().getIdString();
-            if (r.getData().getType().equals(VariantType.SNV)) {
+            if (r.getData().getType().equals(VariantType.SNV) || r.getData().getType().equals(VariantType.SNP)) {
                 id = r.getData().getId()[1]; // ALT as id
-            }
-            if (r.getData().getType().equals(VariantType.DELETION)) {
+            } else if (r.getData().getType().equals(VariantType.DELETION)) {
                 id = HBaseAlleleCalculator.DEL_SYMBOL;
-            }
-            if (r.getData().getType().equals(VariantType.MNV)) {
+            } else if (r.getData().getType().equals(VariantType.MNV)) {
                 id = HBaseAlleleCalculator.DEL_SYMBOL;
-            }
-            if (r.getData().getType().equals(VariantType.INSERTION)) {
+            } else if (r.getData().getType().equals(VariantType.INSERTION)) {
                 id = HBaseAlleleCalculator.INS_SYMBOL;
+            } else {
+                throw new IllegalStateException("Unexpected type: " + r.getData().getType());
             }
             for (int i = start; i <= end; i++) {
                 map.computeIfAbsent(i, k -> new AlleleCountPosition())
@@ -307,5 +347,15 @@ public class AlleleRegionCalculator extends AbstractAlleleCalculator {
                 this.store.add(missing);
             }
         });
+    }
+
+    @Override
+    public AlleleCountPosition buildVariantCount(Integer position, String variant) {
+        return buildVariantMap(new PointRegion(null, position)).get(position).get(variant);
+    }
+
+    @Override
+    public AlleleCountPosition buildPositionCount(Integer position) {
+        return buildReferenceMap(new PointRegion(null, position)).get(position);
     }
 }

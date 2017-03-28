@@ -41,6 +41,10 @@ public class AlleleInfo {
         this(count, depth, null == sampleId ? Collections.emptyList() : Collections.singleton(sampleId), id, type, pass);
     }
 
+    public AlleleInfo(AlleleInfo copy) {
+        this(copy.getCount(), copy.getDepth(), copy.getSampleIds(), copy.getId(), copy.getType(), copy.isPass());
+    }
+
     public void addSampleId(Integer sampleId) {
         this.sampleIds.add(sampleId);
     }

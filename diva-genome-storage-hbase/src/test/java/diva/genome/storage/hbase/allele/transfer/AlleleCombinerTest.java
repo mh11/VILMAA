@@ -3,7 +3,9 @@ package diva.genome.storage.hbase.allele.transfer;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.AlleleInfo;
 import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
+import diva.genome.storage.hbase.allele.count.position.AbstractAlleleCalculator;
 import diva.genome.storage.hbase.allele.count.position.HBaseAlleleCalculator;
+import diva.genome.storage.hbase.allele.count.region.AlleleRegionCalculator;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -39,7 +41,7 @@ public class AlleleCombinerTest {
     private Variant hemiref;
     private Variant snv;
     private Variant snv2;
-    private HBaseAlleleCalculator calculator;
+    private AbstractAlleleCalculator calculator;
     private Variant reference2;
     private Variant insertion;
     private Variant insertion2;
@@ -58,7 +60,8 @@ public class AlleleCombinerTest {
         this.reference2 = getVariant(chromosome + ":" + position + ":.:.", studyId, 2, "S2", "0/0", map("FILTER", "not-pass"));
         this.snv = getVariant(chromosome + ":" + position + ":A:G", studyId, sampleName, "0/1", map("FILTER", "not-pass"));
         this.snv2 = getVariant(chromosome + ":" + position + ":A:G", studyId, 2, "S2", "0/1", map("FILTER", "not-pass"));
-        this.calculator = new HBaseAlleleCalculator("22", mapObj(sampleName, sampleId));
+//        this.calculator = new HBaseAlleleCalculator("22", mapObj(sampleName, sampleId));
+        this.calculator = new AlleleRegionCalculator("22", mapObj(sampleName, sampleId), position - 2, position + 2);
         this.insertion = getVariant(chromosome + ":" + position + ":-:G", studyId, sampleName, "0/1", map("FILTER", "not-pass"));
         this.insertion2 = getVariant(chromosome + ":" + position + ":-:GTT", studyId, 2, "S2", "0/1", map("FILTER", "not-pass"));
         this.deletion = getVariant(chromosome + ":" + position + ":GT:-", studyId, sampleName, "0/1", map("FILTER", "PASS"));

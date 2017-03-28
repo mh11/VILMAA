@@ -28,9 +28,9 @@ public class HBaseAlleleRegionTransfer {
         this.oldCombiner = new AlleleCombiner(this.sampleIds);
     }
 
-    public void transfer(String chr, Region region, AlleleRegionStore store, BiConsumer<Variant, AlleleCountPosition> consumer) {
+    public void transfer(String chr, Region target, AlleleRegionStore store, BiConsumer<Variant, AlleleCountPosition> consumer) {
         AlleleRegionCalculator regionCalculator = new AlleleRegionCalculator("", Collections.emptyMap(), store);
-        Map<Integer, Map<String, AlleleCountPosition>> allVarMap = regionCalculator.buildVariantMap(region);
+        Map<Integer, Map<String, AlleleCountPosition>> allVarMap = regionCalculator.buildVariantMap(target);
 
         Map<Integer, Map<Integer, Integer>> overlaps = new HashMap<>();
         allVarMap.forEach((pos, e1) -> e1.forEach((id, cnt) -> {

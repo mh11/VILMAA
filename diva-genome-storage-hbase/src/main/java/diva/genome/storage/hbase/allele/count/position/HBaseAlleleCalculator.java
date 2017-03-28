@@ -157,6 +157,7 @@ public class HBaseAlleleCalculator extends AbstractAlleleCalculator {
         });
     }
 
+    @Override
     public AlleleCountPosition buildVariantCount(Integer position, String variant) {
         AtomicBoolean hasData = new AtomicBoolean(false);
         AlleleCountPosition count = new AlleleCountPosition();
@@ -172,6 +173,7 @@ public class HBaseAlleleCalculator extends AbstractAlleleCalculator {
         return count;
     }
 
+    @Override
     public AlleleCountPosition buildPositionCount(Integer position) {
         AtomicBoolean hasData = new AtomicBoolean(false);
         AlleleCountPosition count = new AlleleCountPosition();

@@ -50,10 +50,28 @@ public class RegionTest {
         assertTrue(insertion.overlap(99));
         assertTrue(insertion.overlap(100));
         assertFalse(insertion.overlap(101));
-
     }
 
+    @Test
+    public void overlapStrictINSERTION() throws Exception {
+        Region insertion = new RegionImpl("x", 100, 99);
+        assertFalse(insertion.overlap(98, true));
+        assertFalse(insertion.overlap(99, true));
+        assertTrue(insertion.overlap(100, true));
+        assertFalse(insertion.overlap(101, true));
 
+        assertFalse(insertion.overlap(new RegionImpl("x", 97, 98), true));
+        assertFalse(insertion.overlap(new RegionImpl("x", 97, 99), true));
+        assertTrue(insertion.overlap(new RegionImpl("x", 97, 100), true));
+        assertTrue(insertion.overlap(new RegionImpl("x", 98, 101), true));
+        assertTrue(insertion.overlap(new RegionImpl("x", 98, 100), true));
+        assertTrue(insertion.overlap(new RegionImpl("x", 99, 100), true));
+        assertTrue(insertion.overlap(new RegionImpl("x", 100, 100), true));
+        assertTrue(insertion.overlap(new RegionImpl("x", 100, 101), true));
+        assertFalse(insertion.overlap(new RegionImpl("x", 101, 102), true));
+
+        assertTrue(insertion.overlap(insertion, true));
+    }
 
     @Test
     public void coverRegion() throws Exception {

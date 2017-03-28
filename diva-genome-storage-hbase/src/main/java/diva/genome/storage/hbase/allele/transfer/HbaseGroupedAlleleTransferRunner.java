@@ -4,6 +4,7 @@ import com.google.common.collect.BiMap;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAppendGroupedToAlleleCountConverter;
+import diva.genome.storage.hbase.allele.count.position.HBaseAlleleTransfer;
 import diva.genome.storage.hbase.allele.exporter.AlleleTableToVariantRunner;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hbase.client.Put;
@@ -56,8 +57,8 @@ public class HbaseGroupedAlleleTransferRunner extends AlleleTableToVariantRunner
         mapper.setMrHelper(mrHelper);
         mapper.groupedConverter = new HBaseAppendGroupedToAlleleCountConverter(gh.getColumnFamily());
         mapper.setStudiesRow(gh.generateVariantRowKey(GenomeHelper.DEFAULT_METADATA_ROW_KEY, 0));
-        mapper.alleleCombiner = new AlleleCombiner(new HashSet<>(indexedSamples.values()));
         mapper.converter = new AlleleCountToHBaseConverter(gh.getColumnFamily(), gh.getStudyId() + "");
+        mapper.hBaseAlleleTransfer = new HBaseAlleleTransfer(new HashSet<>(indexedSamples.values()));
         return mapper;
     }
 
@@ -82,10 +83,9 @@ public class HbaseGroupedAlleleTransferRunner extends AlleleTableToVariantRunner
         }
 
         @Override
-        protected Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
-            Put put = super.newTransfer(variant, from, to);
+        protected Put toPut(Variant variant, AlleleCountPosition to) {
+            Put put = super.toPut(variant, to);
             if (getLog().isDebugEnabled()) {
-                getLog().debug("Merged from: \n{}" , from.toDebugString());
                 getLog().debug("Merged {} into: \n{}" , variant, to.toDebugString());
             }
             return put;
@@ -103,6 +103,7 @@ public class HbaseGroupedAlleleTransferRunner extends AlleleTableToVariantRunner
                     }
                     Pair<String, Integer> pair = groupedConverter.extractRegion(result.getRow());
                     if (!pair.getLeft().equals(chromosome)) {
+                        hBaseAlleleTransfer.resetNewChromosome();
                         chromosome = pair.getLeft();
                         clearRegionOverlap();
                     }
@@ -115,9 +116,9 @@ public class HbaseGroupedAlleleTransferRunner extends AlleleTableToVariantRunner
                         checkDeletionOverlapMap(position);
                         Pair<AlleleCountPosition, Map<String, AlleleCountPosition>> refAndAlts =
                                 regionData.get(position);
-                        List<Pair<Variant, AlleleCountPosition>> variants = extractToVariants(pair.getLeft(), position,
+                        List<Pair<AlleleCountPosition, Variant>> variants = extractToVariants(pair.getLeft(), position,
                                 refAndAlts.getRight());
-                        processVariants(refAndAlts.getLeft(), variants, submitFunction);
+                        hBaseAlleleTransfer.process(refAndAlts.getLeft(), variants, (v, a) -> toPut(v, a));
                     }
                 }
                 getLog().info("Done ...");
