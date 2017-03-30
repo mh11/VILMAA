@@ -109,16 +109,6 @@ public class HBaseTransferAlleleRunner extends AlleleTableToVariantRunner {
             return ctxt;
         }
 
-        @Override
-        protected void setup(Context context) throws IOException, InterruptedException {
-            // nothing
-        }
-
-        @Override
-        protected void cleanup(Context context) throws IOException, InterruptedException {
-            // nothing
-        }
-
         public void myRun(ResultScanner scanner, Consumer<Put> consumer) {
             ctxt.results = scanner.iterator();
             ctxt.resconsumer = consumer;
@@ -267,7 +257,7 @@ public class HBaseTransferAlleleRunner extends AlleleTableToVariantRunner {
 
             @Override
             public Configuration getConfiguration() {
-                return null;
+                return this.configuration;
             }
 
             @Override
