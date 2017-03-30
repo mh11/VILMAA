@@ -1,7 +1,10 @@
 package diva.genome.analysis.filter;
 
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.VariantStats;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -11,9 +14,11 @@ import java.util.function.Predicate;
 public class OverallPassRateFilter implements Function<AllelesAvro, Boolean>, Predicate<AllelesAvro> {
 
     private final Float cutoffInclusive;
+    private final Set<String> cohorts;
 
-    public OverallPassRateFilter(Float cutoffInclusive) {
+    public OverallPassRateFilter(Float cutoffInclusive, Set<String> oprCohort) {
         this.cutoffInclusive = cutoffInclusive;
+        this.cohorts = new HashSet<>(oprCohort);
     }
 
     @Override
@@ -23,6 +28,12 @@ public class OverallPassRateFilter implements Function<AllelesAvro, Boolean>, Pr
 
     @Override
     public boolean test(AllelesAvro allelesAvro) {
-        return allelesAvro.getOverallPassRate() >= cutoffInclusive;
+        for (String cohort : this.cohorts) {
+            VariantStats stats = allelesAvro.getStats().get(cohort);
+            if (null != stats && null != stats.getOverallPassrate() && stats.getOverallPassrate() < this.cutoffInclusive) {
+                return false;
+            }
+        }
+        return true;
     }
 }

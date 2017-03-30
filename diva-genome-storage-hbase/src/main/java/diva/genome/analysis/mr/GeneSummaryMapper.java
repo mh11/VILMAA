@@ -63,7 +63,10 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         float popFreq = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_POP_AF, 0.0001F);
         getLog().info("Use {} as Population AF cutoff ", popFreq);
 
-
+        Set<String> oprCohorts = new HashSet<>();
+        if (null != context.getConfiguration().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS)){
+            oprCohorts.addAll(Arrays.asList(context.getConfiguration().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS)));
+        }
         float opr = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_OPR, 0.95F);
         getLog().info("Use {} as OPR cutoff ", opr);
 
@@ -91,7 +94,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         converter.setParseStatistics(true);
         converter.setCohortWhiteList(this.exportCohort);
         hBaseAlleleCountsToAllelesConverter = converter;
-        this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, popFreq, ctlMafAuto, ctlMafX, opr, caddScore);
+        this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, popFreq, ctlMafAuto, ctlMafX, opr, oprCohorts, caddScore);
     }
 
     @Override
