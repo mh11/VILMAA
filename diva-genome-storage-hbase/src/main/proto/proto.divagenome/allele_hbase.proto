@@ -5,7 +5,7 @@ package protobuf.divagenome;
 option java_outer_classname = "AlleleCountHBase";
 option java_generate_equals_and_hash = true;
 option java_multiple_files = true;
-option java_package = "diva.genome.storage.hbase.allele.model.protobuf";
+option java_package = "diva.genome.storage.hbase.allele.models.protobuf";
 
 
 

@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.count;
 
 import com.google.common.collect.BiMap;
+import diva.genome.analysis.models.variant.stats.VariantStatistics;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Result;
@@ -14,14 +15,10 @@ import org.opencb.biodata.models.variant.stats.VariantStats;
 import org.opencb.biodata.tools.variant.merge.VariantMerger;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
-import org.opencb.opencga.storage.hadoop.variant.converters.annotation.HBaseToVariantAnnotationConverter;
-import org.opencb.opencga.storage.hadoop.variant.converters.stats.HBaseToVariantStatsConverter;
-import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -53,12 +50,14 @@ public class HBaseAlleleCountsToVariantConverter extends AbstractHBaseAlleleCoun
     }
 
     @Override
-    protected void addStatistics(Variant variant, String studyName, Map<String, VariantStats> statsMap) {
+    protected void addStatistics(Variant variant, String studyName, Map<String, VariantStatistics> statsMap) {
         StudyEntry studyEntry = variant.getStudy(studyName);
         if (null == studyEntry) {
             return;
         }
-        studyEntry.setStats(statsMap);
+        Map<String, VariantStats> collect = statsMap.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e
+                -> e.getValue()));
+        studyEntry.setStats(collect);
     }
 
     @Override

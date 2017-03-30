@@ -20,13 +20,14 @@ import java.sql.SQLException;
 import java.util.Collections;
 
 /**
+ * Execute MapReduce job to (re-)calculate statistics for different cohorts.
  * Created by mh719 on 01/02/2017.
  */
 public class AlleleTableStatsDriver extends AbstractAnalysisTableDriver {
 
-    public static final String CONFIG_STORAGE_STATS_COHORTS = "diva.genome.storage.hbase.allele.stats.cohorts";;
-    public static final String CONFIG_STORAGE_STATS_OPR = "diva.genome.storage.hbase.allele.stats.opr";;
-    public static final String CONFIG_STORAGE_STATS_CALC = "diva.genome.storage.hbase.allele.stats.CALC";;
+    public static final String CONFIG_STORAGE_STATS_COHORTS = "diva.genome.storage.hbase.allele.stats.cohorts";
+    public static final String CONFIG_STORAGE_STATS_HWE = "diva.genome.storage.hbase.allele.stats.hwe";
+    public static final String CONFIG_STORAGE_STATS_CALC = "diva.genome.storage.hbase.allele.stats.CALC";
 
 
     public AlleleTableStatsDriver() { /* nothing */ }

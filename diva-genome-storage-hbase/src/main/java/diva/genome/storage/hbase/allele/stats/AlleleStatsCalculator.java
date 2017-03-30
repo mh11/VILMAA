@@ -1,32 +1,44 @@
 package diva.genome.storage.hbase.allele.stats;
 
+import diva.genome.analysis.models.variant.stats.VariantStatistics;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
+import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
 import org.opencb.biodata.models.feature.Genotype;
 import org.opencb.biodata.models.variant.Variant;
+import org.opencb.biodata.models.variant.avro.VariantHardyWeinbergStats;
 import org.opencb.biodata.models.variant.avro.VariantType;
-import org.opencb.biodata.models.variant.stats.VariantStats;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.*;
 import static htsjdk.variant.variantcontext.Allele.NO_CALL_STRING;
+import static java.util.stream.Collectors.toMap;
 
 /**
+ * Calculate allele / genotype frequencies and Hardy-Weinberg (HWE) fisher p-value (optional) from allele counts.
  * Created by mh719 on 10/02/2017.
  */
 public class AlleleStatsCalculator {
     private final Set<Integer> indexed;
     private HBaseAlleleCountsToVariantConverter variantConverter;
+    private boolean calculateHardyWeinberg = false;
 
     public AlleleStatsCalculator(Collection<Integer> indxedSamples) {
         this.indexed = new HashSet<>(indxedSamples);
         this.variantConverter = new HBaseAlleleCountsToVariantConverter(null, null);
+    }
+
+    public boolean isCalculateHardyWeinberg() {
+        return calculateHardyWeinberg;
+    }
+
+    public void setCalculateHardyWeinberg(boolean calculateHardyWeinberg) {
+        this.calculateHardyWeinberg = calculateHardyWeinberg;
     }
 
     protected void allExist(Set<Integer> samples) {
@@ -46,11 +58,11 @@ public class AlleleStatsCalculator {
         }
     }
 
-    public VariantStats calculateStats(AlleleCountPosition position, Set<Integer> samples, Variant variant) {
+    public VariantStatistics calculateStats(AlleleCountPosition position, Set<Integer> samples, Variant variant) {
         return calculateStats(position, samples, variant, null);
     }
 
-    public VariantStats calculateStats(AlleleCountPosition position, Set<Integer> samples, Variant variant, Consumer<AlleleCountPosition> checkFilteredObject) {
+    public VariantStatistics calculateStats(AlleleCountPosition position, Set<Integer> samples, Variant variant, Consumer<AlleleCountPosition> checkFilteredObject) {
         allExist(samples);
         AlleleCountPosition currAllele = new AlleleCountPosition(position, samples);
         Set<Integer> remaining = new HashSet<>(samples);
@@ -94,7 +106,7 @@ public class AlleleStatsCalculator {
 
         // TODO add HomRefs
 
-        VariantStats stats = new VariantStats();
+        VariantStatistics stats = new VariantStatistics();
         stats.setNumSamples(samples.size());
         stats.setVariantType(variant.getType());
 
@@ -116,10 +128,46 @@ public class AlleleStatsCalculator {
             stats.setMafAllele(variant.getReference());
         }
         addGenotypeCount(stats, homRef, noCallIds, currAllele, variant);
+        float callrate = 1;
+        float passrate = 1;
+        if (!samples.isEmpty()) {
+            callrate = ((float) (samples.size() - noCallIds.size()) ) / samples.size();
+            passrate = ((float) currAllele.getPass().size()) / samples.size();
+        }
+        stats.setCallRate(callrate);
+        stats.setPassRate(passrate);
+        stats.setOverallPassRate(callrate * passrate);
+
+        if (isCalculateHardyWeinberg()) {
+            stats.setHw(calcHardyWeinberg(stats.getGenotypesCount()));
+        }
         return stats;
     }
 
-    public void addGenotypeCount(VariantStats stats, int homRef, Set<Integer> noCalls, AlleleCountPosition currCount, Variant variant) {
+    public static VariantHardyWeinbergStats calcHardyWeinberg(Map<Genotype, Integer> genotypesCount) {
+        VariantHardyWeinbergStats hwstats = new VariantHardyWeinbergStats();
+        Map<String, Integer> gtCounts = genotypesCount.entrySet().stream()
+                .collect(toMap(e -> e.getKey().toGenotypeString(), e -> e.getValue()));
+        hwstats.setPValue((float) calcHw(gtCounts));
+        return hwstats;
+    }
+
+    public static double calcHw(Map<String, Integer> gtCounts) {
+        int aa = gtCounts.getOrDefault("1/1", 0);
+        int ab = gtCounts.getOrDefault("0/1", 0);
+        int bb = gtCounts.getOrDefault("0/0", 0);
+        if (aa > bb) { // aa should be rare allele
+            int tmp = bb;
+            bb = aa;
+            aa = tmp;
+        }
+        if ((aa + ab + bb)  < 1) {
+            return -1;
+        }
+        return HardyWeinbergCalculation.hwCalculate(aa, ab, bb);
+    }
+
+    public void addGenotypeCount(VariantStatistics stats, int homRef, Set<Integer> noCalls, AlleleCountPosition currCount, Variant variant) {
         Map<String, Integer> cntGTs = new HashMap<>();
         Map<String, Integer> altPos = new HashMap<>();
         List<String> alternates = new ArrayList<>();

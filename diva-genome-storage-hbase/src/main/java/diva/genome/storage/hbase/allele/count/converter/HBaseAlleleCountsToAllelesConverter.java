@@ -1,15 +1,18 @@
 package diva.genome.storage.hbase.allele.count.converter;
 
 import com.google.common.collect.BiMap;
+import diva.genome.analysis.models.variant.stats.VariantStatistics;
 import diva.genome.storage.hbase.allele.count.AbstractHBaseAlleleCountsConverter;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
+import diva.genome.storage.hbase.allele.stats.AlleleStatsCalculator;
 import diva.genome.storage.models.alleles.avro.AlleleCount;
 import diva.genome.storage.models.alleles.avro.AllelesAvro;
-import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.opencb.biodata.models.variant.Variant;
-import org.opencb.biodata.models.variant.avro.*;
-import org.opencb.biodata.models.variant.stats.VariantStats;
+import org.opencb.biodata.models.variant.avro.Score;
+import org.opencb.biodata.models.variant.avro.VariantAnnotation;
+import org.opencb.biodata.models.variant.avro.VariantType;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import org.slf4j.Logger;
@@ -17,10 +20,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CALL;
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.toMap;
 
 /**
  * Created by mh719 on 24/02/2017.
@@ -35,22 +37,14 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
     }
 
     @Override
-    protected void addStatistics(AllelesAvro.Builder filled, String studyName, Map<String, VariantStats> statsMap) {
+    protected void addStatistics(AllelesAvro.Builder filled, String studyName, Map<String, VariantStatistics> statsMap) {
         HashMap<String, diva.genome.storage.models.alleles.avro.VariantStats> map = new HashMap(statsMap.size());
         statsMap.forEach((key, val) -> map.put(key, buildStats(val)));
         filled.setStats(map);
-        double wgs10kmaf = -1;
-        if (statsMap.containsKey("WGS10K")) {
-            VariantStats stats = statsMap.get("WGS10K");
-            if (null != stats) {
-                wgs10kmaf = stats.getMaf();
-            }
-        }
-        filled.setMafWgs10k((float) wgs10kmaf);
     }
 
-    private diva.genome.storage.models.alleles.avro.VariantStats buildStats(VariantStats val) {
-        org.opencb.biodata.models.variant.avro.VariantStats impl = val.getImpl();
+    private diva.genome.storage.models.alleles.avro.VariantStats buildStats(VariantStatistics stats) {
+        org.opencb.biodata.models.variant.avro.VariantStats impl = stats.getImpl();
         diva.genome.storage.models.alleles.avro.VariantStats.Builder builder = diva.genome.storage.models.alleles
                 .avro.VariantStats.newBuilder();
         builder.setRefAlleleCount(impl.getRefAlleleCount());
@@ -62,27 +56,13 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         builder.setMgf(impl.getMgf());
         builder.setMafAllele(impl.getMafAllele());
         builder.setNumSamples(impl.getNumSamples());
-        if (val.getHw() != null && val.getHw().getPValue() != null) {
-            builder.setHwe(val.getHw().getPValue().floatValue());
+        if (stats.getHw() != null && stats.getHw().getPValue() != null) {
+            builder.setHwe(stats.getHw().getPValue().floatValue());
         } else {
-            builder.setHwe((float) calcHw(gtCounts));
+            builder.setHwe((float) AlleleStatsCalculator.calcHw(gtCounts));
         }
+        builder.setOverallPassrate(ObjectUtils.firstNonNull(stats.getOverallPassRate(), -1f));
         return builder.build();
-    }
-
-    private double calcHw(Map<String, Integer> gtCounts) {
-        int aa = gtCounts.getOrDefault("1/1", 0);
-        int ab = gtCounts.getOrDefault("0/1", 0);
-        int bb = gtCounts.getOrDefault("0/0", 0);
-        if (aa > bb) { // aa should be rare allele
-            int tmp = bb;
-            bb = aa;
-            aa = tmp;
-        }
-        if ((aa + ab + bb)  < 1) {
-            return -1;
-        }
-        return HardyWeinbergCalculation.hwCalculate(aa, ab, bb);
     }
 
     @Override
@@ -196,9 +176,6 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         }
         builder.setNumberOfSamples(loadedSamples.size());
         builder.setPass(new Integer(rates.getOrDefault("PASS", "0")));
-        builder.setPassRate(new Float(rates.getOrDefault("PR", "0")));
-        builder.setCallRate(new Float(rates.getOrDefault("CR", "0")));
-        builder.setOverallPassRate(new Float(rates.getOrDefault("OPR", "0")));
         builder.setNotPass(bean.getNotPass());
         // add Allele Count
         builder.setAlleleCount(buildAlleleCount(bean));

@@ -1,16 +1,16 @@
 package diva.genome.storage.hbase.allele.count;
 
 import com.google.common.collect.BiMap;
+import diva.genome.analysis.models.variant.stats.HBaseToVariantStatisticsConverter;
+import diva.genome.analysis.models.variant.stats.VariantStatistics;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Result;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.biodata.models.variant.avro.VariantAnnotation;
 import org.opencb.biodata.models.variant.avro.VariantType;
-import org.opencb.biodata.models.variant.stats.VariantStats;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 import org.opencb.opencga.storage.hadoop.variant.converters.annotation.HBaseToVariantAnnotationConverter;
-import org.opencb.opencga.storage.hadoop.variant.converters.stats.HBaseToVariantStatsConverter;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CALL;
 
@@ -33,7 +34,7 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
     protected volatile HBaseToAlleleCountConverter alleleCountConverter;
     protected boolean studyNameAsStudyId = false;
     private volatile HBaseToVariantAnnotationConverter annotationConverter;
-    private volatile HBaseToVariantStatsConverter statsConverter;
+    private volatile HBaseToVariantStatisticsConverter statsConverter;
     private boolean mutableSamplesPosition = true;
     private boolean parseAnnotations = false;
     private boolean parseStatistics = false;
@@ -76,9 +77,11 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
         return annotationConverter;
     }
 
-    public HBaseToVariantStatsConverter getStatsConverter() {
+    public HBaseToVariantStatisticsConverter getStatsConverter() {
         if (null == statsConverter) {
-            statsConverter = new HBaseToVariantStatsConverter(genomeHelper);
+            Set<Integer> cohortIds = this.cohortWhiteList.stream().map(s -> studyConfiguration.getCohortIds().get(s))
+                    .collect(Collectors.toSet());
+            statsConverter = new HBaseToVariantStatisticsConverter(genomeHelper, genomeHelper.getColumnFamily(), genomeHelper.getStudyId(), cohortIds);
         }
         return statsConverter;
     }
@@ -107,14 +110,14 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
         return annot;
     }
 
-    public Map<Integer, Map<Integer, VariantStats>> parseStatistics(Result result) {
+    public Map<Integer, Map<Integer, VariantStatistics>> parseStatistics(Result result) {
         if (parseStatistics) {
             return getStatsConverter().convert(result);
         }
         return Collections.emptyMap();
     }
 
-    public Map<Integer, Map<Integer, VariantStats>> parseStatistics(ResultSet result) {
+    public Map<Integer, Map<Integer, VariantStatistics>> parseStatistics(ResultSet result) {
         if (parseStatistics) {
             return getStatsConverter().convert(result);
         }
@@ -150,15 +153,15 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
         return filled;
     }
 
-    protected void addStatistics(T filled, Map<Integer, Map<Integer, VariantStats>> stats) {
-        Map<String, VariantStats> statsMap = new HashMap<>();
+    protected void addStatistics(T filled, Map<Integer, Map<Integer, VariantStatistics>> stats) {
+        Map<String, VariantStatistics> statsMap = new HashMap<>();
         String studyName = studyConfiguration.getStudyName();
         if (stats != null) {
             int studyId = studyConfiguration.getStudyId();
-            Map<Integer, VariantStats> convertedStatsMap = stats.get(studyId);
+            Map<Integer, VariantStatistics> convertedStatsMap = stats.get(studyId);
             if (convertedStatsMap != null) {
                 BiMap<Integer, String> cohortIds = studyConfiguration.getCohortIds().inverse();
-                for (Map.Entry<Integer, VariantStats> entry : convertedStatsMap.entrySet()) {
+                for (Map.Entry<Integer, VariantStatistics> entry : convertedStatsMap.entrySet()) {
                     String cohortName = cohortIds.get(entry.getKey());
                     if (!this.cohortWhiteList.isEmpty() && this.cohortWhiteList.contains(cohortName)) {
                         statsMap.put(cohortName, entry.getValue());
@@ -169,7 +172,7 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
         addStatistics(filled, studyName, statsMap);
     }
 
-    protected abstract void addStatistics(T filled, String studyName, Map<String, VariantStats> statsMap);
+    protected abstract void addStatistics(T filled, String studyName, Map<String, VariantStatistics> statsMap);
 
     protected abstract void addAnnotation(T filled, VariantAnnotation variantAnnotation);
 

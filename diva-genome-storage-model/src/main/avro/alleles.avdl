@@ -51,6 +51,7 @@ protocol Alleles {
         string mafAllele;
         int numSamples;
         float hwe;
+        float overallPassrate;
     }
 
 
@@ -95,15 +96,10 @@ protocol Alleles {
         int numberOfSamples;
         int pass;
         array<int> notPass;
-        float callRate;
-        float passRate;
-        float overallPassRate;
-
         array<string> consequenceTypes;
         array<string> bioTypes;
         union { null, float } caddScaled = null;
         array<string> ensemblGeneIds;
-        float mafWgs10k;
 
         /**
          * Allele count of the current ref/alt and other overlapping alternates.
