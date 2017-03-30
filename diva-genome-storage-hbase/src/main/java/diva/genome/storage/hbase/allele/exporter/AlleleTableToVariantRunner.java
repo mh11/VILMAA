@@ -24,6 +24,7 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.security.Credentials;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.commons.datastore.core.QueryOptions;
@@ -53,7 +54,6 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
     protected void map(Scan scan, String variantTable) {
         try {
             myMapper = new MyMapper();
-            myMapper.setStudyConfiguration(getStudyConfiguration());
             MyMapper.MyCtxt ctxt = myMapper.buildContext();
             ctxt.configuration = getConf();
             myMapper.setup(ctxt);
@@ -199,7 +199,7 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
 
             @Override
             public TaskAttemptID getTaskAttemptID() {
-                return null;
+                return new TaskAttemptID(new TaskID(new JobID("123", 1), TaskType.MAP, 1), 1);
             }
 
             @Override
