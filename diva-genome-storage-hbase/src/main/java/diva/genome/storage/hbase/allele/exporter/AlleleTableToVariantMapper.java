@@ -33,6 +33,7 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
     private Set<String> validCohorts;
     private Set<String> cohortMafField;
     private Set<String> cohortMafCellField;
+    private String studyName;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -41,6 +42,7 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
         this.countsToVariantConverter.setParseStatistics(true);
         this.countsToVariantConverter.setParseAnnotations(true);
         this.countsToVariantConverter.setReturnSamples(this.returnedSamples);
+        this.countsToVariantConverter.setStudyNameAsStudyId(true);
         this.oprCutoff = context.getConfiguration().getDouble(DIVA_EXPORT_OPR_CUTOFF_INCL, 0.95);
         this.cohortOprFields = new HashSet<>(Arrays.asList(
                 // 100, 125 and 150 bp technical cohorts as default
@@ -48,6 +50,7 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
         ));
         // Cohort name to Cohort ID
         int studyId = getHelper().getStudyId();
+        studyName = getStudyConfiguration().getStudyName();
         this.cohortOprCellFields = this.cohortOprFields.stream()
                 .map(f -> AlleleTablePhoenixHelper.getOprColumn(
                         studyId,
@@ -120,7 +123,7 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
     @Override
     protected Variant convertToVariant(Result value) {
         Variant variant = this.countsToVariantConverter.convert(value);
-        StudyEntry se = variant.getStudy(getHelper().getStudyId() + "");
+        StudyEntry se = variant.getStudy(studyName);
         Map<String, VariantStats> cleanStats = new HashMap<>();
         Map<String, VariantStats> stats = se.getStats();
         stats.forEach((k, v) -> {
