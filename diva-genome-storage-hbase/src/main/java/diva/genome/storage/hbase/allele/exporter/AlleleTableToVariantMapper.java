@@ -65,6 +65,7 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
                 context.getConfiguration().getStrings("DIVA_EXPORT_STATS_FIELD", "BRIDGE", "BRIDGE_UNRELATED")
         ));
         getLog().info("Only export stats for {} ...", this.validCohorts);
+        this.countsToVariantConverter.setCohortWhiteList(validCohorts);
     }
 
     protected boolean isMetaRow(Result value) {
