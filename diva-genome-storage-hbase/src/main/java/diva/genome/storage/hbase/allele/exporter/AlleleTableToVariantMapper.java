@@ -112,7 +112,7 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
     }
 
     protected boolean doIncludeMaf(Result value) {
-        if (this.cohortMafCutoff <= 0.0F) {
+        if (this.cohortMafCutoff < 0.0F) {
             return true; // not set if MAF is negative or 0
         }
         for (String mafCellField : cohortMafCellField) {
