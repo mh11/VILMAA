@@ -132,7 +132,7 @@ public class AlleleStatsCalculator {
         float passrate = 1;
         if (!samples.isEmpty()) {
             callrate = ((float) (samples.size() - noCallIds.size()) ) / samples.size();
-            passrate = ((float) currAllele.getPass().size()) / samples.size();
+            passrate = ((float) (samples.size() - currAllele.getNotPass().size()) ) / samples.size();
         }
         stats.setCallRate(callrate);
         stats.setPassRate(passrate);
