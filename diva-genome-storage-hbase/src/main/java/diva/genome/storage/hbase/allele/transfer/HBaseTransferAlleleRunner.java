@@ -1,43 +1,19 @@
 package diva.genome.storage.hbase.allele.transfer;
 
-import com.google.common.collect.BiMap;
-import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
-import diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter;
-import diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter;
 import diva.genome.storage.hbase.allele.exporter.AlleleTableToVariantRunner;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.io.RawComparator;
-import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapreduce.*;
-import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.JobID;
-import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.OutputCommitter;
-import org.apache.hadoop.mapreduce.OutputFormat;
-import org.apache.hadoop.mapreduce.Partitioner;
-import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
-import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.security.Credentials;
-import org.opencb.biodata.models.variant.Variant;
-import org.opencb.biodata.models.variant.avro.VariantType;
-import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.utils.HBaseManager;
-import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
-import org.opencb.opencga.storage.hadoop.variant.OpencgaMapReduceHelper;
-import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
@@ -56,7 +32,6 @@ public class HBaseTransferAlleleRunner extends AlleleTableToVariantRunner {
             MyMapper mapper = new MyMapper();
             MyMapper.MyCtxt myCtxt = mapper.buildContext();
             myCtxt.configuration = getConf();
-            mapper.setup(myCtxt);
 
             HBaseManager.HBaseTableConsumer consumer =
                     c -> mapper.myRun(c.getScanner(scan), put -> putList.add(put));
@@ -67,27 +42,8 @@ public class HBaseTransferAlleleRunner extends AlleleTableToVariantRunner {
             });
         } catch (IOException e) {
             throw new IllegalStateException(e);
-        } catch (InterruptedException e) {
-            new IllegalStateException(e);
         }
     }
-
-//    protected MyMapper buildMapper(VariantTableHelper gh, StudyConfiguration studyConfiguration) throws IOException {
-//        MyMapper mapper = new MyMapper();
-//        OpencgaMapReduceHelper mrHelper = new OpencgaMapReduceHelper(null);
-//        mrHelper.setHelper(gh);
-//        mrHelper.setStudyConfiguration(studyConfiguration);
-//        BiMap<String, Integer> indexedSamples = StudyConfiguration.getIndexedSamples(studyConfiguration);
-//        mrHelper.setIndexedSamples(indexedSamples);
-//        mrHelper.setTimestamp(1);
-//
-//        mapper.setMrHelper(mrHelper);
-//        mapper.alleleCountConverter = new HBaseToAlleleCountConverter();
-//        mapper.setStudiesRow(gh.generateVariantRowKey(GenomeHelper.DEFAULT_METADATA_ROW_KEY, 0));
-//        mapper.alleleCombiner = new AlleleCombiner(new HashSet<>(indexedSamples.values()));
-//        mapper.converter = new AlleleCountToHBaseConverter(gh.getColumnFamily(), gh.getStudyId() + "");
-//        return mapper;
-//    }
 
     public static void main(String[] args) throws Exception {
         try {
@@ -120,68 +76,6 @@ public class HBaseTransferAlleleRunner extends AlleleTableToVariantRunner {
                 throw new IllegalStateException(e);
             }
         }
-
-//        @Override
-//        protected Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
-//            Put put = super.newTransfer(variant, from, to);
-//            if (getLog().isDebugEnabled()) {
-//                getLog().debug("Merged from: \n{}" , from.toDebugString());
-//                getLog().debug("Merged {} into: \n{}" , variant, to.toDebugString());
-//            }
-//            return put;
-//        }
-
-//        public void runAlternative(ResultScanner scanner, Consumer<Put> submitFunction) {
-//            try {
-//                // buffer
-//                String chromosome = "-1";
-//                Integer referencePosition = -1;
-//                Result referenceResult = null;
-//                AlleleCountPosition refBean = null;
-//                clearRegionOverlap();
-//                for (Result result : scanner) {
-//                    if (isMetaRow(result.getRow())) {
-//                        continue;
-//                    }
-//                    Variant variant = getHelper().extractVariantFromVariantRowKey(result.getRow());
-//                    if (variant.getStart() > referencePosition && !positionBuffer.isEmpty()) {
-//                        getLog().info("Process buffer of {} for position ... ", positionBuffer.size(), referencePosition);
-//
-//                        processBuffer(refBean, submitFunction);
-//                        positionBuffer.clear();
-//                    }
-//                    if (!StringUtils.equals(chromosome, variant.getChromosome())) {
-//                        referencePosition = -1;
-//                        clearRegionOverlap();
-//                        chromosome = variant.getChromosome();
-//                    }
-//                    checkDeletionOverlapMap(variant.getStart());
-//                    if (variant.getType().equals(VariantType.NO_VARIATION)) {
-//                        referencePosition = variant.getStart();
-//                        referenceResult = result;
-//                        refBean = null;
-//                        continue;
-//                    }
-//                    // if actual variant
-//                    if (null == referencePosition || !referencePosition.equals(variant.getStart())) {
-//                        // should only happen at the start of a split block.
-//                        referenceResult = queryForRefernce(variant);
-//                    }
-//                    if (refBean == null) {
-//                        refBean = this.alleleCountConverter.convert(referenceResult);
-//                    }
-//                    this.positionBuffer.add(new ImmutablePair<>(result, variant));
-//                }
-//                getLog().info("Clear buffer ...");
-//                if (!positionBuffer.isEmpty()) {
-//                    processBuffer(refBean, submitFunction);
-//                    positionBuffer.clear();
-//                }
-//                getLog().info("Done ...");
-//            } catch (Exception e) {
-//                throw new IllegalStateException("Something went wrong during transfer", e);
-//            }
-//        }
 
         private class MyCtxt extends Context {
             public Configuration configuration;
