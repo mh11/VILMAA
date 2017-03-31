@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import static diva.genome.storage.hbase.allele.stats.AlleleTableStatsDriver.*;
 
@@ -144,10 +145,19 @@ public class AlleleStatsMapper extends AnalysisStatsMapper {
                 throw new IllegalStateException("Expected VariantStatistics class but got " + stats.getClass());
             }
             VariantStatistics vstats = (VariantStatistics) stats;
-            PhoenixHelper.Column column = AlleleTablePhoenixHelper.getOprColumn(studyId.get(), cohortId);
-            put.get().addColumn(getHelper().getColumnFamily(), column.bytes(), column.getPDataType().toBytes(vstats.getOverallPassRate()));
+            BiConsumer<PhoenixHelper.Column, Float> submit = (column, value) -> put.get().addColumn
+                    (getHelper().getColumnFamily(), column.bytes(), column.getPDataType().toBytes(value));
+            nonNull(vstats.getOverallPassRate(), AlleleTablePhoenixHelper.getOprColumn(studyId.get(), cohortId), submit);
+            nonNull(vstats.getCallRate(), AlleleTablePhoenixHelper.getCallRateColumn(studyId.get(), cohortId), submit);
+            nonNull(vstats.getPassRate(), AlleleTablePhoenixHelper.getPassRateColumn(studyId.get(), cohortId), submit);
 
         });
         return put.get();
+    }
+
+    protected <T> void nonNull(T value, PhoenixHelper.Column column, BiConsumer<PhoenixHelper.Column, T> consumer) {
+        if (null != value) {
+            consumer.accept(column, value);
+        }
     }
 }
