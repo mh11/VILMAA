@@ -75,8 +75,9 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
         VariantSourceDBAdaptor source = new HadoopVariantSourceDBAdaptor(getHelper());
 
         try (OutputStream out = new FileOutputStream(outVCF)) {
-            vcfDataWriter = new VariantVcfDataWriter(getStudyConfiguration(), source, out, options);
-            vcfDataWriter.setExportGenotype(true);
+            HadoopVcfDivaOutputFormat outputFormat = new HadoopVcfDivaOutputFormat();
+            vcfDataWriter = outputFormat.prepareVcfWriter(
+                    getHelper(), getStudyConfiguration(), (a, b) -> {}, out);
             vcfDataWriter.open();
             vcfDataWriter.pre();
             // do the work
