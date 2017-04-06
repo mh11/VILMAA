@@ -18,17 +18,14 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static diva.genome.storage.hbase.allele.AnalysisExportDriver.*;
+
 /**
  * Maps HBase entries to Variant objects and allows to filter on cohort specific OPR & MAF values.
  * Created by mh719 on 05/02/2017.
  */
 public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
 
-    public static final String DIVA_EXPORT_OPR_CUTOFF_INCL = "DIVA_EXPORT_OPR_CUTOFF_INCL";
-    protected static final String DIVA_EXPORT_STATS_FIELD = "DIVA_EXPORT_STATS_FIELD";
-    protected static final String DIVA_EXPORT_OPR_FIELD = "DIVA_EXPORT_OPR_FIELD";
-    protected static final String DIVA_EXPORT_MAF_CUTOFF_GT = "DIVA_EXPORT_MAF_CUTOFF_GT";
-    protected static final String DIVA_EXPORT_MAF_FIELD = "DIVA_EXPORT_MAF_FIELD";
     private volatile HBaseAlleleCountsToVariantConverter countsToVariantConverter;
     private double oprCutoff;
     private float cohortMafCutoff;
@@ -47,10 +44,10 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
         this.countsToVariantConverter.setParseAnnotations(true);
         this.countsToVariantConverter.setReturnSamples(this.returnedSamples);
         this.countsToVariantConverter.setStudyNameAsStudyId(true);
-        this.oprCutoff = context.getConfiguration().getDouble(DIVA_EXPORT_OPR_CUTOFF_INCL, 0.95);
+        this.oprCutoff = context.getConfiguration().getDouble(CONFIG_ANALYSIS_OPR_VALUE, 0.95);
         this.cohortOprFields = new HashSet<>(Arrays.asList(
                 // 100, 125 and 150 bp technical cohorts as default
-                context.getConfiguration().getStrings(DIVA_EXPORT_OPR_FIELD, StudyEntry.DEFAULT_COHORT)
+                context.getConfiguration().getStrings(CONFIG_ANALYSIS_OPR_COHORTS, StudyEntry.DEFAULT_COHORT)
         ));
         // Cohort name to Cohort ID
         int studyId = getHelper().getStudyId();
@@ -61,15 +58,15 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
                         getStudyConfiguration().getCohortIds().get(f)).column())
                 .collect(Collectors.toSet());
         getLog().info("Use OPR cohort {} with {} for cutoff {} to filter ... ", this.cohortOprFields, this.cohortOprCellFields, oprCutoff);
-        this.cohortMafField = new HashSet<>(Arrays.asList(context.getConfiguration().get(DIVA_EXPORT_MAF_FIELD, StudyEntry.DEFAULT_COHORT)));
+        this.cohortMafField = new HashSet<>(Arrays.asList(context.getConfiguration().get(CONFIG_ANALYSIS_EXPORT_MAF_COHORTS, StudyEntry.DEFAULT_COHORT)));
         this.cohortMafCellField =  this.cohortMafField.stream().map(f ->
                 VariantPhoenixHelper.getMafColumn(studyId, getStudyConfiguration().getCohortIds().get(f)).column())
                 .collect(Collectors.toSet());
-        this.cohortMafCutoff = context.getConfiguration().getFloat(DIVA_EXPORT_MAF_CUTOFF_GT, 0.0F);
+        this.cohortMafCutoff = context.getConfiguration().getFloat(CONFIG_ANALYSIS_EXPORT_MAF_VALUE, 0.0F);
         getLog().info("Use MAF cohort {} with {} for cutoff {} to filter ... ", this.cohortMafField, cohortMafCellField, cohortMafCutoff);
 
         validCohorts = new HashSet<>(Arrays.asList(
-                context.getConfiguration().getStrings(DIVA_EXPORT_STATS_FIELD, StudyEntry.DEFAULT_COHORT)
+                context.getConfiguration().getStrings(CONFIG_ANALYSIS_EXPORT_COHORTS, StudyEntry.DEFAULT_COHORT)
         ));
         getLog().info("Only export stats for {} ...", this.validCohorts);
         this.countsToVariantConverter.setCohortWhiteList(validCohorts);

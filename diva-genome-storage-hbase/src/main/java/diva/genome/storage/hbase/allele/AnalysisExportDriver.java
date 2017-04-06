@@ -25,9 +25,15 @@ import java.util.Objects;
  * Created by mh719 on 24/02/2017.
  */
 public class AnalysisExportDriver extends AbstractAlleleDriver {
-    public static final String CONFIG_ANALYSIS_EXPORT_AVRO_PATH = "diva.genome.storage.avro.allele.file";
-    public static final String CONFIG_ANALYSIS_EXPORT_GENOTYPE = "diva.genome.storage.avro.allele.genotype";
-    public static final String CONFIG_ANALYSIS_EXPORT_COHORTS = "diva.genome.storage.avro.allele.cohorts";
+    public static final String CONFIG_ANALYSIS_EXPORT_PATH = "diva.genome.storage.allele.file";
+    public static final String CONFIG_ANALYSIS_EXPORT_GENOTYPE = "diva.genome.storage.allele.genotype";
+    public static final String CONFIG_ANALYSIS_EXPORT_COHORTS = "diva.genome.storage.allele.cohorts";
+    public static final String CONFIG_ANALYSIS_EXPORT_MAF_COHORTS = "diva.genome.storage.allele.maf.cohorts";
+    public static final String CONFIG_ANALYSIS_EXPORT_MAF_VALUE = "diva.genome.storage.allele.maf.cutoff";
+    public static final String CONFIG_ANALYSIS_OPR_COHORTS = "diva.genome.storage.allele.opr.cohorts";
+    public static final String CONFIG_ANALYSIS_OPR_VALUE = "diva.genome.storage.allele.opr.cutoff";
+    public static final String CONFIG_ANALYSIS_OPR_Y_COHORTS = "diva.genome.storage.allele.opr.y.cohorts";
+    public static final String CONFIG_ANALYSIS_OPR_Y_VALUE = "diva.genome.storage.allele.opr.y.cutoff";
     private String outAvroFile;
 
     @Override
@@ -39,11 +45,11 @@ public class AnalysisExportDriver extends AbstractAlleleDriver {
     protected void parseAndValidateParameters() {
         super.parseAndValidateParameters();
         outAvroFile = null;
-        if (!Objects.isNull(getConf().get(CONFIG_ANALYSIS_EXPORT_AVRO_PATH, null))) {
-            outAvroFile = getConf().get(CONFIG_ANALYSIS_EXPORT_AVRO_PATH);
+        if (!Objects.isNull(getConf().get(CONFIG_ANALYSIS_EXPORT_PATH, null))) {
+            outAvroFile = getConf().get(CONFIG_ANALYSIS_EXPORT_PATH);
         }
         if (StringUtils.isBlank(this.outAvroFile)) {
-            throw new IllegalArgumentException("No avro output path specified using " + CONFIG_ANALYSIS_EXPORT_AVRO_PATH);
+            throw new IllegalArgumentException("No avro output path specified using " + CONFIG_ANALYSIS_EXPORT_PATH);
         }
     }
 

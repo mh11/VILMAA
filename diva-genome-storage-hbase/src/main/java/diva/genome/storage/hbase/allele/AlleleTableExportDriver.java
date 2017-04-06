@@ -14,11 +14,30 @@ import org.opencb.biodata.models.variant.avro.VariantAvro;
 import org.opencb.opencga.storage.hadoop.variant.exporters.VariantTableExportDriver;
 
 import java.io.IOException;
+import java.util.Objects;
+
+import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALYSIS_EXPORT_GENOTYPE;
+import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALYSIS_EXPORT_PATH;
 
 /**
  * Created by mh719 on 05/02/2017.
  */
 public class AlleleTableExportDriver extends VariantTableExportDriver {
+
+    @Override
+    protected void parseAndValidateParameters() {
+        mapConfig(CONFIG_ANALYSIS_EXPORT_GENOTYPE, CONFIG_VARIANT_TABLE_EXPORT_GENOTYPE);
+        mapConfig(CONFIG_ANALYSIS_EXPORT_PATH, CONFIG_VARIANT_TABLE_EXPORT_PATH);
+        super.parseAndValidateParameters();
+    }
+
+    private void mapConfig(String from, String to) {
+        String val = getConf().get(from, null);
+        if (Objects.nonNull(val)) {
+            getLog().info("Overwrite {} with {} from {} ", to, val, from);
+            getConf().set(to, val);
+        }
+    }
 
     @Override
     protected Class<? extends TableMapper> getMapperClass() {
