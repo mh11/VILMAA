@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.exporter;
 
 import diva.genome.analysis.models.variant.stats.VariantStatistics;
+import diva.genome.storage.hbase.allele.AnalysisExportDriver;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -44,7 +45,7 @@ public class HadoopVcfDivaOutputFormat extends HadoopVcfOutputFormat {
         // prepare indexes
         Configuration conf = helper.getConf();
         Set<String> validCohorts =  new HashSet<>(Arrays.asList(
-                conf.getStrings(AlleleTableToVariantMapper.DIVA_EXPORT_STATS_FIELD, StudyEntry.DEFAULT_COHORT)));
+                conf.getStrings(AnalysisExportDriver.CONFIG_ANALYSIS_EXPORT_COHORTS, StudyEntry.DEFAULT_COHORT)));
         Map<String, Integer> cohortIds = sc.getCohortIds().entrySet().stream()
                 .filter(e -> validCohorts.contains(e.getKey()))
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
