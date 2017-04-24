@@ -1,6 +1,6 @@
 package diva.genome.analysis.filter;
 
-import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.AlleleVariant;
 import diva.genome.storage.models.alleles.avro.VariantAnnotation;
 import org.apache.commons.codec.binary.StringUtils;
 import org.opencb.biodata.models.variant.avro.PopulationFrequency;
@@ -13,7 +13,7 @@ import java.util.Optional;
  *
  * Created by mh719 on 02/03/2017.
  */
-public class PopulationAlleleFrequencyFilter extends AbstractFilter<AllelesAvro> {
+public class PopulationAlleleFrequencyFilter extends AbstractFilter<AlleleVariant> {
     private final Float af;
     private final String study;
     private final String cohort;
@@ -26,8 +26,8 @@ public class PopulationAlleleFrequencyFilter extends AbstractFilter<AllelesAvro>
 
 
     @Override
-    public Boolean doTest(AllelesAvro allelesAvro) {
-        Float exac = extractExacAlleleFrequency(allelesAvro.getAnnotation());
+    public Boolean doTest(AlleleVariant AlleleVariant) {
+        Float exac = extractExacAlleleFrequency(AlleleVariant.getAnnotation());
         return exac < this.af;
     }
 

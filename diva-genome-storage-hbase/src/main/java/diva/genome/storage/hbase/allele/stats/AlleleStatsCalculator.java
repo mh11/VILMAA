@@ -2,7 +2,7 @@ package diva.genome.storage.hbase.allele.stats;
 
 import diva.genome.analysis.models.variant.stats.VariantStatistics;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
-import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
+import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToVariantConverter;
 import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
 import org.opencb.biodata.models.feature.Genotype;
 import org.opencb.biodata.models.variant.Variant;

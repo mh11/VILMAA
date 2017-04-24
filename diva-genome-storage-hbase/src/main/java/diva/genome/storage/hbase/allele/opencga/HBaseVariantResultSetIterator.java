@@ -1,6 +1,6 @@
 package diva.genome.storage.hbase.allele.opencga;
 
-import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
+import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToVariantConverter;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.commons.datastore.core.QueryOptions;
 import org.opencb.commons.datastore.core.QueryResult;

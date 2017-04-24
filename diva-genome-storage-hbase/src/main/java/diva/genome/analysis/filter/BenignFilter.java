@@ -1,19 +1,17 @@
 package diva.genome.analysis.filter;
 
-import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.AlleleVariant;
 import org.apache.commons.lang.StringUtils;
 import org.opencb.biodata.models.variant.avro.ConsequenceType;
 import org.opencb.biodata.models.variant.avro.ProteinVariantAnnotation;
 import org.opencb.biodata.models.variant.avro.Score;
 
 import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
 /**
  * Created by mh719 on 26/02/2017.
  */
-public class BenignFilter  extends AbstractFilter<AllelesAvro> {
+public class BenignFilter  extends AbstractFilter<AlleleVariant> {
 
     public static final String SIFT = "sift";
     public static final String POLYPHEN = "polyphen";
@@ -21,11 +19,11 @@ public class BenignFilter  extends AbstractFilter<AllelesAvro> {
     public static final String POLY_BENIGN = "benign";
 
     @Override
-    public Boolean doTest(AllelesAvro allelesAvro) {
-        if (allelesAvro.getAnnotation() == null || allelesAvro.getAnnotation().getConsequenceTypes() == null) {
+    public Boolean doTest(AlleleVariant AlleleVariant) {
+        if (AlleleVariant.getAnnotation() == null || AlleleVariant.getAnnotation().getConsequenceTypes() == null) {
             return  false;
         }
-        return hasBenign(allelesAvro.getAnnotation().getConsequenceTypes());
+        return hasBenign(AlleleVariant.getAnnotation().getConsequenceTypes());
     }
 
     public static boolean hasBenign(List<ConsequenceType> annotations) {

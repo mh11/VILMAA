@@ -1,6 +1,6 @@
 package diva.genome.analysis.filter;
 
-import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.AlleleVariant;
 import diva.genome.storage.models.alleles.avro.VariantAnnotation;
 import org.apache.commons.lang.StringUtils;
 import org.opencb.biodata.models.variant.avro.ConsequenceType;
@@ -14,21 +14,21 @@ import java.util.stream.Collectors;
 /**
  * Created by mh719 on 25/02/2017.
  */
-public class NonsenseFilter implements Function<AllelesAvro, Boolean>, Predicate<AllelesAvro> {
+public class NonsenseFilter implements Function<AlleleVariant, Boolean>, Predicate<AlleleVariant> {
 
     public static final String BIOTYPE_PROTEIN_CODING = "protein_coding";
 
     @Override
-    public boolean test(AllelesAvro allelesAvro) {
-        VariantAnnotation annotation = allelesAvro.getAnnotation();
+    public boolean test(AlleleVariant AlleleVariant) {
+        VariantAnnotation annotation = AlleleVariant.getAnnotation();
         if (null == annotation || null == annotation.getConsequenceTypes()) {
             return false;
         }
         return annotation.getConsequenceTypes().stream().anyMatch(c -> valid(c));
     }
 
-    public Collection<ConsequenceType> validConsequences(AllelesAvro allelesAvro) {
-        VariantAnnotation annotation = allelesAvro.getAnnotation();
+    public Collection<ConsequenceType> validConsequences(AlleleVariant AlleleVariant) {
+        VariantAnnotation annotation = AlleleVariant.getAnnotation();
         if (null == annotation || null == annotation.getConsequenceTypes()) {
             return Collections.emptyList();
         }
@@ -51,8 +51,8 @@ public class NonsenseFilter implements Function<AllelesAvro, Boolean>, Predicate
 
 
     @Override
-    public Boolean apply(AllelesAvro allelesAvro) {
-        return test(allelesAvro);
+    public Boolean apply(AlleleVariant AlleleVariant) {
+        return test(AlleleVariant);
     }
 
 }

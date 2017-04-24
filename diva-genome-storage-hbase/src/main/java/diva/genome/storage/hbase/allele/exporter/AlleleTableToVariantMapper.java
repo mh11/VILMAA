@@ -1,6 +1,6 @@
 package diva.genome.storage.hbase.allele.exporter;
 
-import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
+import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToVariantConverter;
 import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;

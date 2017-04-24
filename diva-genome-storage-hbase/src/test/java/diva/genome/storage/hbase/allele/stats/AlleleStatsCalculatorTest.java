@@ -2,7 +2,7 @@ package diva.genome.storage.hbase.allele.stats;
 
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator;
-import diva.genome.storage.hbase.allele.count.HBaseAlleleCountsToVariantConverter;
+import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToVariantConverter;
 import diva.genome.storage.hbase.allele.transfer.AlleleCombiner;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;

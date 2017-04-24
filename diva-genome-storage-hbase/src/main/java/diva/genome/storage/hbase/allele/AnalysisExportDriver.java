@@ -2,7 +2,7 @@ package diva.genome.storage.hbase.allele;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import diva.genome.storage.hbase.allele.exporter.AlleleTableToAlleleMapper;
-import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.AlleleVariant;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.commons.lang.StringUtils;
@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * Reads from Allele Variant table and creates an AVRO file in the format of {@link AllelesAvro}
+ * Reads from Allele Variant table and creates an AVRO file in the format of {@link AlleleVariant}
  * Created by mh719 on 24/02/2017.
  */
 public class AnalysisExportDriver extends AbstractAlleleDriver {
@@ -60,7 +60,7 @@ public class AnalysisExportDriver extends AbstractAlleleDriver {
         FileOutputFormat.setOutputPath(job, new Path(this.outAvroFile)); // set Path
         FileOutputFormat.setOutputCompressorClass(job, GzipCodec.class); // compression
         job.setOutputFormatClass(AvroKeyOutputFormat.class);
-        AvroJob.setOutputKeySchema(job, AllelesAvro.getClassSchema()); // Set schema
+        AvroJob.setOutputKeySchema(job, AlleleVariant.getClassSchema()); // Set schema
         job.setNumReduceTasks(0);
     }
 

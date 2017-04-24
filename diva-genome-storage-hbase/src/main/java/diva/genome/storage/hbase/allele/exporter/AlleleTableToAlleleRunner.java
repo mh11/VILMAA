@@ -3,7 +3,7 @@ package diva.genome.storage.hbase.allele.exporter;
 import com.google.common.collect.BiMap;
 import diva.genome.storage.hbase.allele.AbstractLocalRunner;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
-import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.AlleleVariant;
 import diva.genome.storage.models.samples.avro.SampleCollection;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
@@ -34,17 +34,17 @@ import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALY
  */
 public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     public static final String OUTPUT_FILE = "diva.allele.output.file";
-//    private DataFileWriter<AllelesAvro> dataFileWriter;
+//    private DataFileWriter<AlleleVariant> dataFileWriter;
     private HBaseAlleleCountsToAllelesConverter hBaseAlleleCountsToAllelesConverter;
     private Set<String> exportCohort;
     private Set<Integer> returnedSampleIds;
-    private AvroParquetWriter<AllelesAvro> parquetWriter;
+    private AvroParquetWriter<AlleleVariant> parquetWriter;
     private DataFileWriter dataFileWriter;
 
     @Override
     protected void map(Result result) throws IOException {
-        AllelesAvro.Builder builder = this.hBaseAlleleCountsToAllelesConverter.convert(result);
-        AllelesAvro avro = builder.build();
+        AlleleVariant.Builder builder = this.hBaseAlleleCountsToAllelesConverter.convert(result);
+        AlleleVariant avro = builder.build();
         this.dataFileWriter.append(avro);
 //        this.parquetWriter.write(avro);
     }
@@ -115,7 +115,7 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     protected void prepareParquetWriter(Runnable runnable) throws IOException {
         // http://blog.cloudera.com/blog/2014/05/how-to-convert-existing-data-into-parquet/
         Path path = getOutputFile();
-        Schema classSchema = AllelesAvro.getClassSchema();
+        Schema classSchema = AlleleVariant.getClassSchema();
         CompressionCodecName codec = CompressionCodecName.SNAPPY;
         parquetWriter = new AvroParquetWriter<>(path, classSchema,
                 codec, 1024, 1024, true, getConf());
@@ -129,9 +129,9 @@ public class AlleleTableToAlleleRunner extends AbstractLocalRunner {
     protected void prepareAvroWriter(Runnable runnable) throws IOException {
         Path outputFile = getOutputFile();
         this.dataFileWriter = new DataFileWriter<>(
-                new SpecificDatumWriter<>(AllelesAvro.class));
+                new SpecificDatumWriter<>(AlleleVariant.class));
         try {
-            dataFileWriter.create(AllelesAvro.SCHEMA$, new File(outputFile.toString()));
+            dataFileWriter.create(AlleleVariant.SCHEMA$, new File(outputFile.toString()));
             runnable.run();
         } finally {
             dataFileWriter.close();

@@ -1,7 +1,9 @@
-package diva.genome.storage.hbase.allele.count;
+package diva.genome.storage.hbase.allele.count.converter;
 
 import com.google.common.collect.BiMap;
 import diva.genome.analysis.models.variant.stats.VariantStatistics;
+import diva.genome.storage.hbase.allele.count.AbstractHBaseAlleleCountsConverter;
+import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Result;

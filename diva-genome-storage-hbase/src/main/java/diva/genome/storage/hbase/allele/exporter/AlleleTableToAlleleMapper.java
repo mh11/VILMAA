@@ -3,7 +3,7 @@ package diva.genome.storage.hbase.allele.exporter;
 import com.google.common.collect.BiMap;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
-import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.AlleleVariant;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -163,7 +163,7 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
     protected void map(ImmutableBytesWritable key, Result value, Mapper.Context context) throws IOException,
             InterruptedException {
         if (!isMetaRow(value) && isValid(value)) { // ignore _METADATA row
-            AllelesAvro allelesAvro = convertToVariant(value);
+            AlleleVariant allelesAvro = convertToVariant(value);
             context.write(new AvroKey<>(allelesAvro), NullWritable.get());
             context.getCounter(AbstractVariantTableMapReduce.COUNTER_GROUP_NAME, allelesAvro.getType().name()).increment(1);
         }
@@ -232,7 +232,7 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
     }
 
 
-    protected AllelesAvro convertToVariant(Result value) {
+    protected AlleleVariant convertToVariant(Result value) {
         return this.getHBaseAlleleCountsToAllelesConverter().convert(value).build();
     }
 }
