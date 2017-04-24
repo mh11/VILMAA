@@ -74,6 +74,7 @@ public class AlleleCountToGenotypes {
         allExist(samples);
         AlleleCountPosition currAllele = new AlleleCountPosition(position, samples);
         Set<Integer> remaining = new HashSet<>(samples);
+        validRefAlleles(currAllele);
         if (null != checkFilteredObject) {
             checkFilteredObject.accept(currAllele);
         }
