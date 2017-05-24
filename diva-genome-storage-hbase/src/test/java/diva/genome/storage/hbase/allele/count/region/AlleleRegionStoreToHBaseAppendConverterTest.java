@@ -12,6 +12,7 @@ import org.opencb.biodata.models.variant.avro.VariantType;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -100,12 +101,12 @@ public class AlleleRegionStoreToHBaseAppendConverterTest {
         List<Region<AlleleInfo>> refB = newStore.getVariation(newStore.getTargetRegion());
 
         if (!included) {
-            assertEquals(0, refA.size());
-            assertEquals(0, refB.size());
+            assertEquals(0, countVariants(refA));
+            assertEquals(0, countVariants(refB));
             return;
         }
-        assertEquals(1, refA.size());
-        assertEquals(1, refB.size()); // spit due to 100bp region overlap
+        assertEquals(1, countVariants(refA));
+        assertEquals(1, countVariants(refB)); // spit due to 100bp region overlap
 
         refB.sort(Comparator.comparingInt(Region::getStart));
         assertEquals(start, refB.get(0).getStart());
@@ -116,6 +117,12 @@ public class AlleleRegionStoreToHBaseAppendConverterTest {
         refB.forEach(r -> assertEquals(new HashSet<>(Arrays.asList(22)), r.getData().getSampleIds()));
         refB.forEach(r -> assertArrayEquals(alleles, r.getData().getId()));
         refB.forEach(r -> assertEquals(vtype, r.getData().getType()));
+    }
+
+    private int countVariants(List<Region<AlleleInfo>> refB) {
+        return refB.stream()
+                .map(x -> x.getStart() + "_" + x.getEnd() + "_" + x.getData().getDepth() + "_" + x.getData().getIdString())
+                .collect(Collectors.toSet()).size();
     }
 
     @Test
