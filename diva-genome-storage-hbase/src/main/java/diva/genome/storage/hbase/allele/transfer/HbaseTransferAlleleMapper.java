@@ -89,7 +89,6 @@ public class HbaseTransferAlleleMapper extends AbstractVariantTableMapReduce {
 
         try {
             while (context.nextKeyValue()) {
-                ImmutableBytesWritable currentKey = context.getCurrentKey();
                 Result result = context.getCurrentValue();
                 if (isMetaRow(result.getRow())) {
                     context.getCounter("OPENCGA", "META_ROW").increment(1);

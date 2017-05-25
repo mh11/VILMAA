@@ -1,8 +1,8 @@
 package diva.genome.storage.hbase.allele.count.region;
 
 import com.google.protobuf.MessageLite;
-import diva.genome.storage.hbase.allele.model.protobuf.*;
-import diva.genome.storage.hbase.allele.model.protobuf.AlleleRegion.Builder;
+import diva.genome.storage.hbase.allele.models.protobuf.*;
+import diva.genome.storage.hbase.allele.models.protobuf.AlleleRegion.Builder;
 import diva.genome.util.Region;
 import diva.genome.util.RegionImpl;
 import org.apache.hadoop.hbase.client.Append;
@@ -71,7 +71,7 @@ public class AlleleRegionStoreToHBaseAppendConverter {
     }
 
     public Collection<Append> convert(Region targetRegion, String chromosome, AlleleRegionStore store) {
-        Builder builder = diva.genome.storage.hbase.allele.model.protobuf.AlleleRegion.newBuilder();
+        Builder builder = diva.genome.storage.hbase.allele.models.protobuf.AlleleRegion.newBuilder();
         builder.putAllNoCall(buildNoCall(targetRegion, store));
         builder.putAllReference(buildRefCall(targetRegion, store));
         builder.putAllVariation(buildVarCall(targetRegion, store));

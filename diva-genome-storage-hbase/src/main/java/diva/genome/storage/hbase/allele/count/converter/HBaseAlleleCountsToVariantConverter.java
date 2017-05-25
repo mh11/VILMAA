@@ -1,6 +1,9 @@
-package diva.genome.storage.hbase.allele.count;
+package diva.genome.storage.hbase.allele.count.converter;
 
 import com.google.common.collect.BiMap;
+import diva.genome.analysis.models.variant.stats.VariantStatistics;
+import diva.genome.storage.hbase.allele.count.AbstractHBaseAlleleCountsConverter;
+import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Result;
@@ -49,12 +52,14 @@ public class HBaseAlleleCountsToVariantConverter extends AbstractHBaseAlleleCoun
     }
 
     @Override
-    protected void addStatistics(Variant variant, String studyName, Map<String, VariantStats> statsMap) {
+    protected void addStatistics(Variant variant, String studyName, Map<String, VariantStatistics> statsMap) {
         StudyEntry studyEntry = variant.getStudy(studyName);
         if (null == studyEntry) {
             return;
         }
-        studyEntry.setStats(statsMap);
+        Map<String, VariantStats> collect = statsMap.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e
+                -> e.getValue()));
+        studyEntry.setStats(collect);
     }
 
     @Override

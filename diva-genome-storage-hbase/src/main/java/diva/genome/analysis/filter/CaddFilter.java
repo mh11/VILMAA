@@ -1,6 +1,6 @@
 package diva.genome.analysis.filter;
 
-import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.AlleleVariant;
 import org.apache.commons.lang.StringUtils;
 import org.opencb.biodata.models.variant.avro.Score;
 
@@ -9,18 +9,18 @@ import java.util.List;
 /**
  * Created by mh719 on 26/02/2017.
  */
-public class CaddFilter extends AbstractFilter<AllelesAvro> {
+public class CaddFilter extends AbstractFilter<AlleleVariant> {
     public static final int CADD_CUTOFF = 15;
     public static final String CADD_SCALED = "cadd_scaled";
 
 
     @Override
-    public Boolean doTest(AllelesAvro allelesAvro) {
-        if (null == allelesAvro || allelesAvro.getAnnotation() == null
-                || allelesAvro.getAnnotation().getFunctionalScore() == null) {
+    public Boolean doTest(AlleleVariant AlleleVariant) {
+        if (null == AlleleVariant || AlleleVariant.getAnnotation() == null
+                || AlleleVariant.getAnnotation().getFunctionalScore() == null) {
             return false;
         }
-        return hasHighCadd(allelesAvro.getAnnotation().getFunctionalScore());
+        return hasHighCadd(AlleleVariant.getAnnotation().getFunctionalScore());
     }
 
     public boolean hasHighCadd(List<Score> functionalScores){

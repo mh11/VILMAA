@@ -1,8 +1,8 @@
 package diva.genome.storage.hbase.allele.count.region;
 
 import diva.genome.storage.hbase.allele.count.AlleleInfo;
-import diva.genome.storage.hbase.allele.model.protobuf.ARSEntry;
-import diva.genome.storage.hbase.allele.model.protobuf.AlleleRegion;
+import diva.genome.storage.hbase.allele.models.protobuf.ARSEntry;
+import diva.genome.storage.hbase.allele.models.protobuf.AlleleRegion;
 import diva.genome.util.RegionImpl;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;

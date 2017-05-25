@@ -1,169 +1,85 @@
 package diva.genome.storage.hbase.allele.exporter;
 
-import com.google.common.collect.BiMap;
-import diva.genome.storage.hbase.allele.AbstractLocalRunner;
-import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
-import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToVariantConverter;
+import diva.genome.storage.hbase.allele.AnalysisExportDriver;
+import diva.genome.storage.hbase.allele.stats.AlleleTableStatsRunner;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.io.RawComparator;
-import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapreduce.*;
-import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.JobID;
-import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.OutputCommitter;
-import org.apache.hadoop.mapreduce.OutputFormat;
-import org.apache.hadoop.mapreduce.Partitioner;
-import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
-import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.security.Credentials;
-import org.opencb.biodata.models.variant.Variant;
-import org.opencb.commons.datastore.core.QueryOptions;
-import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
-import org.opencb.opencga.storage.core.variant.adaptors.VariantSourceDBAdaptor;
-import org.opencb.opencga.storage.core.variant.io.VariantVcfDataWriter;
-import org.opencb.opencga.storage.hadoop.variant.adaptors.HadoopVariantSourceDBAdaptor;
+import org.opencb.opencga.storage.hadoop.variant.index.VariantTableHelper;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URI;
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
+import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.CONFIG_VARIANT_TABLE_NAME;
 
 /**
- * Created by mh719 on 08/02/2017.
+ * Created by mh719 on 24/04/2017.
  */
-public class AlleleTableToVariantRunner extends AbstractLocalRunner {
-    public static final String OUTPUT_VCF_FILE = "diva.allele.output.vcf";
-    private HBaseAlleleCountsToVariantConverter variantConverter;
-    private VariantVcfDataWriter vcfDataWriter;
-    private MyMapper myMapper;
+public class AnalysisExportRunner extends AnalysisExportDriver {
 
-    @Override
-    protected void map(Scan scan, String variantTable) {
-        try {
-            myMapper = new MyMapper();
-            MyMapper.MyCtxt ctxt = myMapper.buildContext();
-            ctxt.configuration = getConf();
-            myMapper.setup(ctxt);
-            prepareVcf(() -> super.map(scan, variantTable));
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        } catch (InterruptedException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    protected void prepareVcf(Runnable runnable) throws IOException {
-        File outVCF = getOutputFile();
-        BiMap<String, Integer> indexedSamples = StudyConfiguration.getIndexedSamples(getStudyConfiguration());
-        variantConverter = new HBaseAlleleCountsToVariantConverter(getHelper(), getStudyConfiguration());
-        variantConverter.setReturnSamples(indexedSamples.keySet());
-        variantConverter.setStudyNameAsStudyId(true);
-        QueryOptions options = new QueryOptions();
-        VariantSourceDBAdaptor source = new HadoopVariantSourceDBAdaptor(getHelper());
-
-        try (OutputStream out = new FileOutputStream(outVCF)) {
-            HadoopVcfDivaOutputFormat outputFormat = new HadoopVcfDivaOutputFormat();
-            vcfDataWriter = outputFormat.prepareVcfWriter(
-                    getHelper(), getStudyConfiguration(), (a, b) -> {}, out);
-            vcfDataWriter.open();
-            vcfDataWriter.pre();
-            // do the work
-            runnable.run();
-            // clean up
-            vcfDataWriter.post();
-            vcfDataWriter.close();
-        } catch (Exception e) {
-            getLog().error("Problems with VCF conversion", e);
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private File getOutputFile() {
-        String outVcf = getConf().get(OUTPUT_VCF_FILE, StringUtils.EMPTY);
-        if (StringUtils.isBlank(outVcf)) {
-            throw new IllegalStateException("VCF output paramter required: " + OUTPUT_VCF_FILE);
-        }
-        File outFile = new File(outVcf);
-        if (outFile.exists()) {
-            throw new IllegalStateException("VCF output already exists !!!");
-        }
-        if (!outFile.getParentFile().exists()) {
-            throw new IllegalStateException("VCF output directory does not exist !!!" + outFile.getParentFile());
-        }
-        return outFile;
-    }
-
-    @Override
-    protected void map(Result result) throws IOException {
-        try {
-            myMapper.doMap(result);
-            Variant currVar = (Variant) myMapper.buildContext().currWriteKey;
-            if (null != currVar) {
-                writeVcf(currVar);
-            }
-        } catch (InterruptedException e) {
-            throw new IOException(e);
-        }
-    }
-
-    protected void writeVcf(Result result) {
-        Variant variant = variantConverter.convert(result);
-        if (getLog().isDebugEnabled()) {
-            AlleleCountPosition convert = variantConverter.getAlleleCountConverter().convert(result);
-            getLog().debug("Convert {} from \n{} ", variant, convert.toDebugString());
-        }
-        vcfDataWriter.write(Collections.singletonList(variant));
-    }
-
-    protected void writeVcf(Variant variant) {
-        if (getLog().isDebugEnabled()) {
-            getLog().debug("Convert {} ", variant);
-        }
-        vcfDataWriter.write(Collections.singletonList(variant));
-    }
 
     public static void main(String[] args) throws Exception {
         try {
-            System.exit(privateMain(args, new AlleleTableToVariantRunner()));
+            System.exit(privateMain(args, null, new AnalysisExportRunner()));
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
         }
     }
 
-    private static class MyMapper extends AlleleTableToVariantMapper {
-        private final MyCtxt ctxt;
+    @Override
+    protected boolean executeJob(Job job) throws IOException, InterruptedException, ClassNotFoundException {
+        MyMapper myMapper = new MyMapper();
+        MyMapper.MyContext context = myMapper.createContext(this.getConf());
+        myMapper.setup(context);
+        Scan scan = createScan();
+        String variantTable = getConf().get(CONFIG_VARIANT_TABLE_NAME, StringUtils.EMPTY);
+        VariantTableHelper helper = getHelper();
+        try {
+            helper.getHBaseManager().act(variantTable, c -> {
+                try {
+                    int iCnt = 0;
+                    ResultScanner scanner = c.getScanner(scan);
+                    for (Result result : scanner) {
+                        if (iCnt % 1000 == 0) {
+                            getLog().info("Processed {} variants and {} submitted ...", iCnt, -1);
+                        }
+                        myMapper.map(new ImmutableBytesWritable(result.getRow()), result, context);
+                        ++iCnt;
+                    }
+                } catch (InterruptedException e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        return true;
+    }
 
-        public MyMapper() {
-            this.ctxt = new MyCtxt();
+    public static class MyMapper extends AlleleTableToAlleleMapper {
+
+
+        public MyContext createContext(Configuration conf) {
+            return new MyContext(conf);
         }
 
-        public MyCtxt buildContext() {
-            return ctxt;
-        }
+        public class MyContext extends Mapper.Context {
+            private Map<String, Counter> counterMap = new HashMap<>();
+            private Configuration conf;
 
-        public void doMap(Result value) throws IOException, InterruptedException {
-            ctxt.currWriteKey = null; // reset
-            ctxt.currWriteValue = null; // reset
-            this.map(null, value, ctxt);
-        }
-
-        public class MyCtxt extends Context {
-
-            public Configuration configuration;
-            public Object currWriteKey;
-            public Object currWriteValue;
+            public MyContext(Configuration conf) {
+                this.conf =conf;
+            }
 
             @Override
             public InputSplit getInputSplit() {
@@ -176,19 +92,18 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
             }
 
             @Override
-            public ImmutableBytesWritable getCurrentKey() throws IOException, InterruptedException {
+            public Object getCurrentKey() throws IOException, InterruptedException {
                 return null;
             }
 
             @Override
-            public Result getCurrentValue() throws IOException, InterruptedException {
+            public Object getCurrentValue() throws IOException, InterruptedException {
                 return null;
             }
 
             @Override
             public void write(Object o, Object o2) throws IOException, InterruptedException {
-                this.currWriteKey = o;
-                this.currWriteValue = o2;
+
             }
 
             @Override
@@ -198,7 +113,7 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
 
             @Override
             public TaskAttemptID getTaskAttemptID() {
-                return new TaskAttemptID(new TaskID(new JobID("123", 1), TaskType.MAP, 1), 1);
+                return new TaskAttemptID("",1, TaskType.MAP, 1, 1);
             }
 
             @Override
@@ -218,17 +133,17 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
 
             @Override
             public Counter getCounter(Enum<?> anEnum) {
-                return new Counters.Counter();
+                return counterMap.computeIfAbsent(anEnum.toString(), (x) -> new org.apache.hadoop.mapred.Counters.Counter());
             }
 
             @Override
             public Counter getCounter(String s, String s1) {
-                return new Counters.Counter();
+                return counterMap.computeIfAbsent(s + "_" + s1, (x) -> new org.apache.hadoop.mapred.Counters.Counter());
             }
 
             @Override
             public Configuration getConfiguration() {
-                return configuration;
+                return this.conf;
             }
 
             @Override
@@ -273,7 +188,7 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
 
             @Override
             public String getJobName() {
-                return null;
+                return "TEST";
             }
 
             @Override
@@ -416,5 +331,6 @@ public class AlleleTableToVariantRunner extends AbstractLocalRunner {
 
             }
         }
+
     }
 }

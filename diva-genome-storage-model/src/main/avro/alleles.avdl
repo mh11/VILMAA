@@ -5,41 +5,19 @@ protocol Alleles {
     import idl "variant.avdl";
     import idl "variantAnnotation.avdl";
 
-    record AlleleCount {
+    record Genotypes {
         array<int> noCall;
+        int homRefCount;
         array<int> het;
-        array<int> homVar;
+        array<int> homAlt;
         /**
-         * Reference counts for samples, not covered by het or homVar
-          * <ul>
-          * <li>1 for one reference allele</li>
-          * <li>2 NOT included: hom_ref values are not stored</li>
-          * <li>other possible alleles</li>
-          * </ul>
-         */
-        // @java-key-class("java.lang.Integer") // issue with parquet
-        map<array<int>> referenceAlleleCounts;
+          * other genotypes e.g. 0, 1, 0/2 or 1/2 etc. Does NOT include NOCALL (. or ./.), 0/0, 0/1 and 1/1
+       **/
+        map<array<int>> otherGenotypes;
         /**
-         * Allele counts for current alternate, not covered by het or homVar
-          * <ul>
-          * <li>1 for one alternate allele</li>
-          * <li>2 NOT included: hom_var values are stored separately</li>
-          * <li>other possible alleles</li>
-          * </ul>
-         */
-        // @java-key-class("java.lang.Integer") // issue with parquet
-        map<array<int>> altAlleleCounts;
-        /**
-         * Allele  counts for other alternates (not current):
-          * map of alternate string e.g. A_T with allele count and ID list.
-          * <ul>
-          * <li>1 for one alternate allele</li>
-          * <li>2 NOT included: hom_var values are stored separately</li>
-          * <li>other possible alleles</li>
-          * </ul>
-         */
-        // @java-key-class("java.lang.Integer") // issue with parquet
-        map<map<array<int>>> otherAltAlleleCounts;
+          * Array of REF (e.g. A), ALT (e.g. G) and Secondary alternate(s) (e.g. T,C). REF is at index 0, ALT at index 1, etc ...
+        **/
+        array<string> alleleBases;
     }
 
     record VariantStats {
@@ -51,6 +29,7 @@ protocol Alleles {
         string mafAllele;
         int numSamples;
         float hwe;
+        float overallPassrate;
     }
 
 
@@ -65,64 +44,59 @@ protocol Alleles {
         array<org.opencb.biodata.models.variant.avro.Score> functionalScore = [];
     }
 
-    record AllelesAvro {
+    record AlleleVariant {
 
         /**
          * Chromosome of the reported allele count.
-         */
+         **/
         string chromosome;
 
         /**
          * Start position of the allele count.
-         */
+         **/
         int start;
 
         /**
          * Start position of the allele count.
-         */
+         **/
         int end;
 
         /**
          * Reference allele.
-         */
+         **/
         string reference;
 
         /**
          * Alternate allele.
-         */
+         **/
         string alternate;
 
         int numberOfSamples;
         int pass;
         array<int> notPass;
-        float callRate;
-        float passRate;
-        float overallPassRate;
-
         array<string> consequenceTypes;
         array<string> bioTypes;
         union { null, float } caddScaled = null;
         array<string> ensemblGeneIds;
-        float mafWgs10k;
 
         /**
-         * Allele count of the current ref/alt and other overlapping alternates.
-         */
-        AlleleCount alleleCount;
+         * Genotype count of the current ref/alt and secalts.
+         **/
+        Genotypes genotypes;
 
         /**
          * Variant type (as specific as possible)
-         */
+         **/
         org.opencb.biodata.models.variant.avro.VariantType type;
 
         /**
          * Statistics of the sample allele counts.
-         */
+         **/
         map<VariantStats> stats;
 
         /**
          * Annotations of the genomic variation.
-         */
+         **/
         VariantAnnotation annotation;
 
     }

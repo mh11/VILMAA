@@ -4,14 +4,15 @@ import com.google.common.collect.BiMap;
 import diva.genome.analysis.GenomeAnalysis;
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
-import diva.genome.storage.models.alleles.avro.AlleleCount;
-import diva.genome.storage.models.alleles.avro.AllelesAvro;
+import diva.genome.storage.models.alleles.avro.AlleleVariant;
+import diva.genome.storage.models.alleles.avro.Genotypes;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
+import org.opencb.biodata.models.feature.Genotype;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.AbstractHBaseMapReduce;
 import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
@@ -63,7 +64,10 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         float popFreq = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_POP_AF, 0.0001F);
         getLog().info("Use {} as Population AF cutoff ", popFreq);
 
-
+        Set<String> oprCohorts = new HashSet<>();
+        if (null != context.getConfiguration().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS)){
+            oprCohorts.addAll(Arrays.asList(context.getConfiguration().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS)));
+        }
         float opr = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_OPR, 0.95F);
         getLog().info("Use {} as OPR cutoff ", opr);
 
@@ -91,14 +95,14 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         converter.setParseStatistics(true);
         converter.setCohortWhiteList(this.exportCohort);
         hBaseAlleleCountsToAllelesConverter = converter;
-        this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, popFreq, ctlMafAuto, ctlMafX, opr, caddScore);
+        this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, popFreq, ctlMafAuto, ctlMafX, opr, oprCohorts, caddScore);
     }
 
     @Override
     protected void map(ImmutableBytesWritable key, Result value, Context context) throws IOException,
             InterruptedException {
         if (!isMetaRow(value)) { // ignore _METADATA row
-            AllelesAvro alleles = convertToVariant(value);
+            AlleleVariant alleles = convertToVariant(value);
             try {
                 Set<Pair<String, String>> transcripts = this.analysis.findTranscripts(alleles, (s) -> {
                     context.getCounter("DIVA", s).increment(1);
@@ -108,7 +112,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
                     return;
                 }
                 context.getCounter("DIVA", "passed-variant-filters").increment(1);
-                Set<Integer> affected = getAffected(alleles.getAlleleCount());
+                Set<Integer> affected = getAffected(alleles.getGenotypes());
                 Set<Integer> affectedCases = new HashSet<>();
                 Set<Integer> affectedCtls = new HashSet<>();
                 Set<Integer> cases = cohorts.get("PAH");
@@ -142,12 +146,22 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         }
     }
 
-    private Set<Integer> getAffected(AlleleCount count) {
+    private Set<Integer> getAffected(Genotypes count) {
         Set<Integer> affected = new HashSet<>();
         affected.addAll(count.getHet());
-        affected.addAll(count.getHomVar());
-        // add other possible combinations which have at lest one of this affected allele
-        count.getAltAlleleCounts().forEach((k, v) -> affected.addAll(v));
+        affected.addAll(count.getHomAlt());
+        // add other possible combinations which have at lest one of the main ALT (index 1)
+        count.getOtherGenotypes().forEach((k, v) -> { // for each GT / samplelist pair
+            Genotype gt = new Genotype(k); // decode GT
+            int[] allelesIdx = gt.getAllelesIdx();
+            int len = allelesIdx.length;
+            for (int i = 0; i < len; i++) { // iterate overGTs
+                if (allelesIdx[i] == 1) { // is main ALT
+                    affected.addAll(v); // ADD samples
+                    return; // done
+                }
+            }
+        });
         return affected;
     }
 
@@ -155,7 +169,7 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         return Bytes.startsWith(value.getRow(), this.studiesRow);
     }
 
-    protected AllelesAvro convertToVariant(Result value) {
+    protected AlleleVariant convertToVariant(Result value) {
         return this.getHBaseAlleleCountsToAllelesConverter().convert(value).build();
     }
     public HBaseAlleleCountsToAllelesConverter getHBaseAlleleCountsToAllelesConverter() {

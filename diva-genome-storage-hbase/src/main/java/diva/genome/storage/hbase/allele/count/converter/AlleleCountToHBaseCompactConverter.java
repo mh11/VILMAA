@@ -2,8 +2,8 @@ package diva.genome.storage.hbase.allele.count.converter;
 
 import diva.genome.storage.hbase.allele.count.AlleleCalculator;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
-import diva.genome.storage.hbase.allele.model.protobuf.PositionCountHBaseProto;
-import diva.genome.storage.hbase.allele.model.protobuf.ReferenceCountHBaseProto;
+import diva.genome.storage.hbase.allele.models.protobuf.PositionCountHBaseProto;
+import diva.genome.storage.hbase.allele.models.protobuf.ReferenceCountHBaseProto;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hbase.client.Append;
 import org.apache.phoenix.query.QueryConstants;

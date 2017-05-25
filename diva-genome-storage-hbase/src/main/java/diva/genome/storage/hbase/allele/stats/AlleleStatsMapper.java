@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.stats;
 
-import diva.genome.storage.hbase.allele.count.AbstractHBaseAlleleCountsConverter;
+import diva.genome.analysis.models.variant.stats.HBaseToVariantStatisticsConverter;
+import diva.genome.analysis.models.variant.stats.VariantStatistics;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter;
 import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
@@ -18,22 +19,24 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 import static diva.genome.storage.hbase.allele.stats.AlleleTableStatsDriver.*;
 
 /**
+ * (Re-)Calculates {@link VariantStatistics} for a list of cohorts. Hardy-Weinberg is optional and can be recalculated separately.
  * Created by mh719 on 01/02/2017.
  */
 public class AlleleStatsMapper extends AnalysisStatsMapper {
 
+
     private AlleleStatsCalculator alleleStatsCalculator;
+    private volatile HBaseToVariantStatisticsConverter statsConverter;
     private Map<String, Set<Integer>> cohortSets;
     private HBaseToAlleleCountConverter alleleCountConverter;
-    private volatile boolean calcOpr = false;
+    private volatile boolean calcHwe = false;
     private volatile boolean calcStats = false;
     private final AtomicInteger studyId = new AtomicInteger();
-    private final Map<String, Float> cohortOpr = new HashMap<>();
     private final Map<String, Integer> cohortNameToId = new HashMap<>();
 
     @Override
@@ -55,6 +58,7 @@ public class AlleleStatsMapper extends AnalysisStatsMapper {
         }
 
         this.cohortSets = new HashMap<>();
+        Set<Integer> cohortIds = new HashSet<>();
         this.getStudyConfiguration().getCohortIds().forEach((cohort, cid) -> {
             if (this.getStudyConfiguration().getCohorts().containsKey(cid)
                     && confCohorts.contains(cohort)) {
@@ -62,6 +66,7 @@ public class AlleleStatsMapper extends AnalysisStatsMapper {
                 if (null != ids && !ids.isEmpty()) {
                     this.cohortSets.put(cohort, ids);
                     this.cohortNameToId.put(cohort, cid);
+                    cohortIds.add(cid);
                 }
             }
         });
@@ -70,22 +75,24 @@ public class AlleleStatsMapper extends AnalysisStatsMapper {
             throw new IllegalStateException("No cohort selected to calculate stats for!!!");
         }
 
-        calcOpr = context.getConfiguration().getBoolean(CONFIG_STORAGE_STATS_OPR, true);
-        getLog().info("Calc OPR set to {}", calcOpr);
+        calcHwe = context.getConfiguration().getBoolean(CONFIG_STORAGE_STATS_HWE, true);
+        getLog().info("Calc HWE set to {}", calcHwe);
 
         calcStats = context.getConfiguration().getBoolean(CONFIG_STORAGE_STATS_CALC, true);
         getLog().info("Calc stats set to {}", calcStats);
 
-        if (!calcOpr && !calcStats) {
+        if (!calcHwe && !calcStats) {
             throw new IllegalStateException("Invalid options - at least one (stat / opr) has to be true!!!");
         }
+        this.alleleStatsCalculator.setCalculateHardyWeinberg(calcHwe);
+        statsConverter = new HBaseToVariantStatisticsConverter(getHelper(), getHelper().getColumnFamily(), getHelper().getStudyId(), cohortIds);
+
     }
 
     private volatile Result currValue;
 
     @Override
     protected Variant convert(Result value) {
-        cohortOpr.clear();
         this.currValue = value;
         return getHelper().extractVariantFromVariantRowKey(value.getRow()); // dummy variant
     }
@@ -101,27 +108,25 @@ public class AlleleStatsMapper extends AnalysisStatsMapper {
             return Collections.emptyList();
         }
         AlleleCountPosition counts = this.alleleCountConverter.convert(currValue);
-
+        Map<Integer, Map<Integer, VariantStatistics>> convert;
+        if (!calcStats) {
+            convert = statsConverter.convert(currValue);
+        } else {
+            convert = Collections.emptyMap();
+        }
+        int sid = studyId.get();
         Map<String, VariantStats> statsMap = new HashMap<>(this.cohortSets.size());
         cohortSets.forEach((cohort, ids) -> {
-            Consumer<AlleleCountPosition> oprFunction = (a) -> {}; // do nothing
-            if (calcOpr) {
-                // function to consume filtered allele count object;
-                oprFunction = (a) -> {
-                    Map<String, String> attr = AbstractHBaseAlleleCountsConverter.calculatePassCallRates(a, ids.size());
-                    Float opr = Float.valueOf(attr.get("OPR"));
-                    cohortOpr.put(cohort, opr);
-                };
+            VariantStatistics variantStats = null;
+            if (convert.containsKey(sid) && convert.get(sid).containsKey(cohort)) {
+                variantStats = convert.get(sid).get(cohort);
             }
-            if (calcStats) {
-                VariantStats variantStats = this.alleleStatsCalculator.calculateStats(counts, ids, variant, oprFunction);
-                statsMap.put(cohort, variantStats);
-            } else if (calcOpr){
-                // Filter Counts based on ID list
-                AlleleCountPosition row = new AlleleCountPosition(counts, ids);
-                // calc OPR
-                oprFunction.accept(row);
+            if (null == variantStats) {
+                variantStats = this.alleleStatsCalculator.calculateStats(counts, ids, variant);
+            } else if (calcHwe) {
+                variantStats.setHw(AlleleStatsCalculator.calcHardyWeinberg(variantStats.getGenotypesCount()));
             }
+            statsMap.put(cohort, variantStats);
         });
         return Collections.singletonList(new VariantStatsWrapper(variant.getChromosome(), variant.getStart(), statsMap));
     }
@@ -129,19 +134,30 @@ public class AlleleStatsMapper extends AnalysisStatsMapper {
     @Override
     protected Put convertToPut(VariantStatsWrapper annotation) {
         AtomicReference<Put> put = new AtomicReference<>();
-        if (calcStats) {
-            put.set(super.convertToPut(annotation));
-        }
-        if ( Objects.isNull(put.get()) && calcOpr) {
+        put.set(super.convertToPut(annotation));
+
+        if ( Objects.isNull(put.get())) {
             put.set(new Put(this.currValue.getRow()));
         }
-        if (calcOpr) {
-            this.cohortOpr.forEach((cohort, opr) -> {
-                Integer cohortId = cohortNameToId.get(cohort);
-                PhoenixHelper.Column column = AlleleTablePhoenixHelper.getOprColumn(studyId.get(), cohortId);
-                put.get().addColumn(getHelper().getColumnFamily(), column.bytes(), column.getPDataType().toBytes(opr));
-            });
-        }
+        annotation.getCohortStats().forEach((cohort, stats) -> {
+            Integer cohortId = cohortNameToId.get(cohort);
+            if (!(stats instanceof VariantStatistics)) {
+                throw new IllegalStateException("Expected VariantStatistics class but got " + stats.getClass());
+            }
+            VariantStatistics vstats = (VariantStatistics) stats;
+            BiConsumer<PhoenixHelper.Column, Float> submit = (column, value) -> put.get().addColumn
+                    (getHelper().getColumnFamily(), column.bytes(), column.getPDataType().toBytes(value));
+            nonNull(vstats.getOverallPassRate(), AlleleTablePhoenixHelper.getOprColumn(studyId.get(), cohortId), submit);
+            nonNull(vstats.getCallRate(), AlleleTablePhoenixHelper.getCallRateColumn(studyId.get(), cohortId), submit);
+            nonNull(vstats.getPassRate(), AlleleTablePhoenixHelper.getPassRateColumn(studyId.get(), cohortId), submit);
+
+        });
         return put.get();
+    }
+
+    protected <T> void nonNull(T value, PhoenixHelper.Column column, BiConsumer<PhoenixHelper.Column, T> consumer) {
+        if (null != value) {
+            consumer.accept(column, value);
+        }
     }
 }

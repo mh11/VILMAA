@@ -2,10 +2,10 @@ package diva.genome.storage.hbase.allele.count.converter;
 
 import com.google.protobuf.MessageLite;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
-import diva.genome.storage.hbase.allele.model.protobuf.AlleleMap;
-import diva.genome.storage.hbase.allele.model.protobuf.AlternateCount;
-import diva.genome.storage.hbase.allele.model.protobuf.ReferenceCountHBaseProto;
-import diva.genome.storage.hbase.allele.model.protobuf.SampleList;
+import diva.genome.storage.hbase.allele.models.protobuf.AlleleMap;
+import diva.genome.storage.hbase.allele.models.protobuf.AlternateCount;
+import diva.genome.storage.hbase.allele.models.protobuf.ReferenceCountHBaseProto;
+import diva.genome.storage.hbase.allele.models.protobuf.SampleList;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
