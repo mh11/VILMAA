@@ -231,6 +231,15 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         if (variant.getStart() > variant.getEnd()) {
             return VariantType.INSERTION;
         }
-        return VariantType.DELETION;
+        if (variant.getReference().length() > 0 && variant.getAlternate().length() == 0) {
+            return VariantType.DELETION;
+        }
+        if (variant.getReference().length() == variant.getAlternate().length()) {
+            return VariantType.MNV;
+        }
+        if (variant.getReference().length() > 0 && variant.getAlternate().length() > 0) {
+            return VariantType.MIXED;
+        }
+        throw new IllegalStateException("Encoding of variant missed: " + variant);
     }
 }
