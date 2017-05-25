@@ -123,6 +123,10 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
         this.sampleNameToSampleId = new HashMap<>(sampleNameToSampleId);
     }
 
+    public Map<String, Integer> getSampleNameToSampleId() {
+        return sampleNameToSampleId;
+    }
+
     public void doSubmit(Collection<Append> appends) throws IOException {
         if (appends.isEmpty()) {
             return; // don't bother.
@@ -253,7 +257,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
         }
     }
 
-    private Collection<Append> packageAlleleCounts(String chromosome, String studyId, AlleleRegionCalculator alleleCalculator) {
+    protected Collection<Append> packageAlleleCounts(String chromosome, String studyId, AlleleRegionCalculator alleleCalculator) {
         return converter.convert(chromosome, alleleCalculator.getStore());
     }
 }

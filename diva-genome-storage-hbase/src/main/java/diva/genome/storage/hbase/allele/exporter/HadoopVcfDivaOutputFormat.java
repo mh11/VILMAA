@@ -39,7 +39,7 @@ public class HadoopVcfDivaOutputFormat extends HadoopVcfOutputFormat {
     }
 
     @Override
-    protected VariantVcfDataWriter prepareVcfWriter(VariantTableHelper helper, StudyConfiguration sc,
+    public VariantVcfDataWriter prepareVcfWriter(VariantTableHelper helper, StudyConfiguration sc,
                                                     BiConsumer<Variant, RuntimeException> failed,
                                                     OutputStream fileOut) throws IOException {
         // prepare indexes
