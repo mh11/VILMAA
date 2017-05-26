@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.transfer;
 
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAppendGroupedToAlleleCountConverter;
@@ -64,7 +65,7 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
         String[] split = varId.split("_", 2);
         String ref = split[0];
         String alt = split[1];
-        return new Variant(chromosome, position, ref, alt);
+        return VariantHbaseUtil.inferAndSetType(new Variant(chromosome, position, ref, alt));
     }
 
     protected List<Pair<AlleleCountPosition, Variant>> extractToVariants(String chrom, Integer pos,
@@ -141,7 +142,7 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
 
     protected Put toPut(Variant variant, AlleleCountPosition to) {
         return this.converter.convertPut(variant.getChromosome(), variant.getStart(),
-                variant.getReference(), variant.getAlternate(), variant.getType(), to);
+                variant.getReference(), variant.getAlternate(), to);
     }
 
     public void setConverter(AlleleCountToHBaseConverter converter) {

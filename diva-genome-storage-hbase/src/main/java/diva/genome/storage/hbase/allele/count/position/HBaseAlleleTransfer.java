@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.count.position;
 
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.transfer.AlleleCombiner;
 import org.apache.commons.lang3.tuple.Pair;
@@ -62,10 +63,7 @@ public class HBaseAlleleTransfer {
             consumer.accept(variant, toBean);
         };
 
-        Predicate<Pair<AlleleCountPosition, Variant>> isIndelFunction = p -> {
-            Variant var = p.getRight();
-            return var.getType().equals(VariantType.INDEL) && var.getStart() > var.getEnd();
-        };
+        Predicate<Pair<AlleleCountPosition, Variant>> isIndelFunction = p -> VariantHbaseUtil.isInsertion(p.getRight());
         Predicate<Pair<AlleleCountPosition, Variant>> isNotIndelFunction = i -> !isIndelFunction.test(i);
 
         // Only INDELs first -> There is no overlap with Deletions starting at same position
@@ -98,6 +96,7 @@ public class HBaseAlleleTransfer {
             case INDEL:
             case INSERTION:
             case DELETION:
+            case MIXED:
                 overlapFunction.accept(this.deletionEnds, toBean);
                 break;
             default:

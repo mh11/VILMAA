@@ -164,7 +164,7 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
                 .setEnd(variant.getEnd())
                 .setReference(variant.getReference())
                 .setAlternate(variant.getAlternate())
-                .setType(getType(variant));
+                .setType(variant.getType());
 
         // Filter IDs
         bean.filterIds(loadedSamples);
@@ -224,22 +224,4 @@ public class HBaseAlleleCountsToAllelesConverter  extends AbstractHBaseAlleleCou
         return builder.build();
     }
 
-    private VariantType getType(Variant variant) {
-        if (!variant.getType().equals(VariantType.INDEL)) {
-            return variant.getType();
-        }
-        if (variant.getStart() > variant.getEnd()) {
-            return VariantType.INSERTION;
-        }
-        if (variant.getReference().length() > 0 && variant.getAlternate().length() == 0) {
-            return VariantType.DELETION;
-        }
-        if (variant.getReference().length() == variant.getAlternate().length()) {
-            return VariantType.MNV;
-        }
-        if (variant.getReference().length() > 0 && variant.getAlternate().length() > 0) {
-            return VariantType.MIXED;
-        }
-        throw new IllegalStateException("Encoding of variant missed: " + variant);
-    }
 }

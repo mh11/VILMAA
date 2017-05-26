@@ -299,6 +299,7 @@ public class HBaseAlleleCalculator extends AbstractAlleleCalculator {
                 break;
             case INSERTION:
             case DELETION:
+            case MIXED:
             case INDEL:
             case MNV:
             case MNP:

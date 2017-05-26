@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.fix;
 
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter;
 import diva.genome.storage.hbase.allele.count.converter.AlleleCountToHBaseAppendGroupedConverter;
@@ -19,6 +20,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import static diva.genome.storage.hbase.VariantHbaseUtil.*;
 
 /**
  * Created by mh719 on 09/02/2017.
@@ -82,7 +85,7 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
                     context.getCounter("OPENCGA", "META_ROW").increment(1);
                     continue;
                 }
-                Variant variant = getHelper().extractVariantFromVariantRowKey(result.getRow());
+                Variant variant = inferAndSetType(getHelper().extractVariantFromVariantRowKey(result.getRow()));
                 int nextPos = groupedConverter.calculateGroupPosition(variant.getStart());
                 if (referencePosition != nextPos) {
                     context.getCounter("OPENCGA", "FLUSH").increment(1);
@@ -121,6 +124,7 @@ public class FromPhoenixToProtoMapper extends AbstractVariantTableMapReduce {
                 case SNP:
                 case MNV:
                 case MNP:
+                case MIXED:
                     Map<String, AlleleCountPosition> map = altMap.computeIfAbsent(variant.getStart(), x -> new HashMap<>());
                     AlleleCountPosition count = this.converter.convert(result);
                     String varId = variant.getReference() + "_" + variant.getAlternate();

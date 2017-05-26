@@ -3,6 +3,7 @@ package diva.genome.storage.hbase.allele.count;
 import com.google.common.collect.BiMap;
 import diva.genome.analysis.models.variant.stats.HBaseToVariantStatisticsConverter;
 import diva.genome.analysis.models.variant.stats.VariantStatistics;
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Result;
 import org.opencb.biodata.models.variant.Variant;
@@ -220,7 +221,7 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
     }
 
     public Variant convertRowKey(byte[] variantRowKey) {
-        return this.genomeHelper.extractVariantFromVariantRowKey(variantRowKey);
+        return VariantHbaseUtil.inferAndSetType(this.genomeHelper.extractVariantFromVariantRowKey(variantRowKey));
     }
 
     private Variant convertRowKey(ResultSet resultSet) throws SQLException {

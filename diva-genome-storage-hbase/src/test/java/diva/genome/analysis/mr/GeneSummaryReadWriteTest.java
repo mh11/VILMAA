@@ -27,7 +27,9 @@ public class GeneSummaryReadWriteTest {
         GeneSummary abc = GeneSummary.newBuilder()
                 .setCases(Arrays.asList(1, 2, 3))
                 .setControls(Arrays.asList(4, 5,6))
-                .setEnsemblGeneId("abc").build();
+                .setEnsemblGeneId("abc")
+                .setEnsemblTranscriptId("XXX")
+                .build();
         byte[] write = writeable.write(abc);
 
         GeneSummary read1 = writeable.read(write, null);
@@ -37,7 +39,9 @@ public class GeneSummaryReadWriteTest {
         GeneSummary other = GeneSummary.newBuilder()
                 .setCases(new ArrayList<>(Arrays.asList(2)))
                 .setControls(new ArrayList<>(Arrays.asList(1)))
-                .setEnsemblGeneId("xxx").build();
+                .setEnsemblGeneId("xxx")
+                .setEnsemblTranscriptId("XXX")
+                .build();
 
         assertNotEquals(abc, other);
 
@@ -53,7 +57,9 @@ public class GeneSummaryReadWriteTest {
         GeneSummary abc = GeneSummary.newBuilder()
                 .setCases(new ArrayList<>(Arrays.asList(1, 2, 3)))
                 .setControls(new ArrayList<>(Arrays.asList(4, 5,6)))
-                .setEnsemblGeneId("abc").build();
+                .setEnsemblGeneId("abc")
+                .setEnsemblTranscriptId("XXX")
+                .build();
         byte[] first = writeable.write(abc);
         GeneSummary firstOut = writeable.read(first, null);
         assertEquals(abc, firstOut);

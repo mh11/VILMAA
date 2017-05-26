@@ -2,6 +2,7 @@ package diva.genome.storage.hbase.allele.count.converter;
 
 import com.google.common.collect.BiMap;
 import diva.genome.analysis.models.variant.stats.VariantStatistics;
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AbstractHBaseAlleleCountsConverter;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import htsjdk.variant.variantcontext.Allele;
@@ -219,7 +220,7 @@ public class HBaseAlleleCountsToVariantConverter extends AbstractHBaseAlleleCoun
             }
             if (StringUtils.equals(k, INS_SYMBOL)) {
                 // Only for INSERTIONS
-                if (variant.getType().equals(VariantType.INDEL) && variant.getStart() > variant.getEnd()) {
+                if (VariantHbaseUtil.isInsertion(variant)) {
                     k = DEL_SYMBOL;
                 } else {
                     // Else Ignore

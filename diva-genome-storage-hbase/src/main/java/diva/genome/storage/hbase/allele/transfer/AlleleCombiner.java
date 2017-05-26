@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.transfer;
 
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import org.apache.commons.lang3.ObjectUtils;
 import org.opencb.biodata.models.variant.Variant;
@@ -40,6 +41,7 @@ public class AlleleCombiner {
                 copyInsertionReference(from, to);
                 break;
             case DELETION:
+            case MIXED:
                 foreach(from, (k, v) -> copyDeletion(k, v, from, to, sidToAllele), DEL_SYMBOL);
                 copyReference(from, to);
                 break;
@@ -318,12 +320,10 @@ public class AlleleCombiner {
                 return VariantType.MNV;
             case INSERTION:
             case DELETION:
+            case MIXED:
                 return variant.getType();
             case INDEL:
-                if (variant.getStart() <= variant.getEnd()) {
-                    return VariantType.DELETION;
-                }
-                return VariantType.INSERTION;
+                return VariantHbaseUtil.inferType(variant);
             default:
                 throw new IllegalStateException("Type not supported: " + variant.getType());
         }
