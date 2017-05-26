@@ -52,7 +52,7 @@ public class GvcfToVariantMapper extends HbaseTableMapper {
             Put put = this.alleleCountToHBaseConverter.convertPut(
                     var.getChromosome(), var.getStart(), var.getReference(), var.getAlternate(), cnt);
             try {
-                ctx.write(new ImmutableBytesWritable(put.getRow()), put);
+                getContext().write(new ImmutableBytesWritable(put.getRow()), put);
             } catch (IOException e) {
                 throw new IllegalStateException("Issue submitting " + var, e);
             } catch (InterruptedException e) {
@@ -60,5 +60,9 @@ public class GvcfToVariantMapper extends HbaseTableMapper {
             }
         });
         return Collections.emptyList();
+    }
+
+    protected Context getContext() {
+        return ctx;
     }
 }

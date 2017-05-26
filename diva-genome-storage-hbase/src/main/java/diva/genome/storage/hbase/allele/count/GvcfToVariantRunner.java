@@ -163,6 +163,11 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
             this.map(key, value, ctxt);
         }
 
+        @Override
+        protected Context getContext() {
+            return ctxt;
+        }
+
         public class MyCtxt extends Context {
             public Configuration configuration;
             public ImmutableBytesWritable currWriteKey;
