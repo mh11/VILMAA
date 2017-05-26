@@ -114,6 +114,7 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
             HadoopVcfDivaOutputFormat outputFormat = new HadoopVcfDivaOutputFormat();
             vcfDataWriter = outputFormat.prepareVcfWriter(
                     getHelper(), getStudyConfiguration(), (a, b) -> {}, out);
+            vcfDataWriter.setExportGenotype(true);
             vcfDataWriter.open();
             vcfDataWriter.pre();
             // do the work
