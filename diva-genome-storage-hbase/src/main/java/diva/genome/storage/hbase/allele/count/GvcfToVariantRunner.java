@@ -14,7 +14,6 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.RawComparator;
-import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -110,30 +109,28 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
         vcfDataWriter.write(Collections.singletonList(variant));
     }
 
-    protected Set<String> getReturnSampleIds() {
-        Set<String> retIds = new HashSet<>();
+    protected StudyConfiguration getReturnStudyConf() throws IOException {
+        StudyConfiguration studyConfiguration = getHelper().loadMeta();
+        LinkedHashSet<Integer> idx = new LinkedHashSet<>();
         for (String fid : getConf().getStrings(CONFIG_VARIANT_FILE_IDS)) {
-            for (Integer sid : getStudyConfiguration().getSamplesInFiles().get(Integer.valueOf(fid))) {
-                String sname = getStudyConfiguration().getSampleIds().inverse().get(sid);
-                retIds.add(sname);
-            }
+            idx.add(Integer.valueOf(fid));
         }
-        return retIds;
+        studyConfiguration.setIndexedFiles(idx);
+        return studyConfiguration;
     }
 
     protected void prepareVcf(Runnable runnable) throws IOException {
         File outVCF = getOutputFile();
-        Set<String> retSamples = getReturnSampleIds();
-        variantConverter = new HBaseAlleleCountsToVariantConverter(getHelper(), getStudyConfiguration());
-        variantConverter.setReturnSamples(retSamples);
+        StudyConfiguration returnStudyConf = getReturnStudyConf();
+        BiMap<String, Integer> indexedSamples = StudyConfiguration.getIndexedSamples(returnStudyConf);
+        variantConverter = new HBaseAlleleCountsToVariantConverter(getHelper(), returnStudyConf);
+        variantConverter.setReturnSamples(indexedSamples.keySet());
         variantConverter.setStudyNameAsStudyId(true);
-        QueryOptions options = new QueryOptions();
-        VariantSourceDBAdaptor source = new HadoopVariantSourceDBAdaptor(getHelper());
 
         try (OutputStream out = new FileOutputStream(outVCF)) {
             HadoopVcfDivaOutputFormat outputFormat = new HadoopVcfDivaOutputFormat();
             vcfDataWriter = outputFormat.prepareVcfWriter(
-                    getHelper(), getStudyConfiguration(), (a, b) -> {}, out);
+                    getHelper(), returnStudyConf, (a, b) -> {}, out);
             vcfDataWriter.setExportGenotype(true);
             vcfDataWriter.open();
             vcfDataWriter.pre();
