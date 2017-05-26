@@ -40,9 +40,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+
+import static org.opencb.opencga.storage.hadoop.variant.index.AbstractVariantTableDriver.CONFIG_VARIANT_FILE_IDS;
 
 /**
  * Created by mh719 on 25/05/2017.
@@ -52,6 +52,15 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
     private HBaseAlleleCountsToVariantConverter variantConverter;
     private VariantVcfDataWriter vcfDataWriter;
     private MyMapper myMapper;
+
+    @Override
+    protected Scan createScan() {
+        Scan scan = super.createScan();
+        for (String sid : getConf().getStrings(CONFIG_VARIANT_FILE_IDS)) {
+            scan.addColumn(getHelper().getColumnFamily(), Bytes.toBytes(sid));
+        }
+        return scan;
+    }
 
     @Override
     protected byte[] generateRowKey(String chrom, Integer position) {
@@ -101,11 +110,22 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
         vcfDataWriter.write(Collections.singletonList(variant));
     }
 
+    protected Set<String> getReturnSampleIds() {
+        Set<String> retIds = new HashSet<>();
+        for (String fid : getConf().getStrings(CONFIG_VARIANT_FILE_IDS)) {
+            for (Integer sid : getStudyConfiguration().getSamplesInFiles().get(Integer.valueOf(fid))) {
+                String sname = getStudyConfiguration().getSampleIds().inverse().get(sid);
+                retIds.add(sname);
+            }
+        }
+        return retIds;
+    }
+
     protected void prepareVcf(Runnable runnable) throws IOException {
         File outVCF = getOutputFile();
-        BiMap<String, Integer> indexedSamples = StudyConfiguration.getIndexedSamples(getStudyConfiguration());
+        Set<String> retSamples = getReturnSampleIds();
         variantConverter = new HBaseAlleleCountsToVariantConverter(getHelper(), getStudyConfiguration());
-        variantConverter.setReturnSamples(indexedSamples.keySet());
+        variantConverter.setReturnSamples(retSamples);
         variantConverter.setStudyNameAsStudyId(true);
         QueryOptions options = new QueryOptions();
         VariantSourceDBAdaptor source = new HadoopVariantSourceDBAdaptor(getHelper());
