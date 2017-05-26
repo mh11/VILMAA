@@ -46,11 +46,26 @@ public abstract class AbstractAlleleCalculator implements AlleleCalculator {
         switch (allele) {
             case -1: return VariantType.NO_VARIATION;
             case 0:
-            case 1: return var.getType();
+            case 1: return saveVariantType(var.getType());
             default:
                 AlternateCoordinate alt = secondaryAlternates.get(allele - 2);
-                return alt.getType();
+                return saveVariantType(alt.getType());
         }
+    }
+
+    public static VariantType saveVariantType(VariantType type) {
+        switch (type) {
+            case NO_VARIATION:
+            case SNV:
+            case MNV:
+            case INDEL:
+                return type;
+            case SV:
+                return VariantType.INDEL;
+            default:
+                break;
+        }
+        throw new IllegalStateException("Type not supported: " + type);
     }
 
     public static Integer getAlleleStart(Variant var, List<AlternateCoordinate> secondaryAlternates, Integer allele) {
