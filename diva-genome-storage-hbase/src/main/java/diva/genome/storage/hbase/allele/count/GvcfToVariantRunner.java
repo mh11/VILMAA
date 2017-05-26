@@ -64,6 +64,7 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
         try {
             myMapper = new MyMapper();
             MyMapper.MyCtxt ctxt = myMapper.buildContext();
+            ctxt.currWriteValue = new ArrayList<>();
             ctxt.configuration = getConf();
             myMapper.setup(ctxt);
             prepareVcf(() -> super.map(scan, archiveTable));
