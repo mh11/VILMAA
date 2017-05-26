@@ -14,7 +14,19 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.RawComparator;
+import org.apache.hadoop.mapred.*;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.JobID;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.apache.hadoop.mapreduce.OutputFormat;
+import org.apache.hadoop.mapreduce.Partitioner;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.security.Credentials;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.commons.datastore.core.QueryOptions;
@@ -209,12 +221,12 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
 
             @Override
             public Counter getCounter(Enum<?> anEnum) {
-                return null;
+                return new Counters.Counter();
             }
 
             @Override
             public Counter getCounter(String s, String s1) {
-                return null;
+                return new Counters.Counter();
             }
 
             @Override
