@@ -5,6 +5,7 @@ import diva.genome.util.PointRegion;
 import diva.genome.util.Region;
 import diva.genome.util.RegionImpl;
 import org.apache.commons.lang3.StringUtils;
+import org.opencb.biodata.models.variant.avro.VariantType;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -124,7 +125,8 @@ public class AlleleRegionStore {
     }
 
     public void getVariation(Region target, Consumer<Region<AlleleInfo>> consumer) {
-        variation.stream().filter(r -> r.overlap(target)).forEach(consumer);
+        variation.stream().filter(r -> r.overlap(target, r.getData().getType().equals(VariantType.INSERTION)))
+                .forEach(consumer);
     }
 
     public List<Region<AlleleInfo>> getVariation(Region target) {

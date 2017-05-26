@@ -157,6 +157,7 @@ public class HBaseToAlleleRegionStoreConverter {
             case ARS_MNV: return VariantType.MNV;
             case ARS_INS: return VariantType.INSERTION;
             case ARS_DEL: return VariantType.DELETION;
+            case ARS_MIX: return VariantType.MIXED;
             default:
                 throw new IllegalStateException("Unkown option: " + type);
         }

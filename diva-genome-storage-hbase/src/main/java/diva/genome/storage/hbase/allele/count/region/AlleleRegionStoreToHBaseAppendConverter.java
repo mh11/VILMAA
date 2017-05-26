@@ -26,6 +26,7 @@ public class AlleleRegionStoreToHBaseAppendConverter {
     protected static final int ARS_MNV = 2;
     protected static final int ARS_INS = 3;
     protected static final int ARS_DEL = 4;
+    protected static final int ARS_MIX = 5;
     protected static final int DEFAULT_REGION_SIZE = 100;
     private volatile ByteArrayOutputStream bout;
     private final byte[] columnFamily;
@@ -223,6 +224,7 @@ public class AlleleRegionStoreToHBaseAppendConverter {
             case INDEL: throw new IllegalStateException("INDEL should be INSERTION or DELETION");
             case INSERTION: return ARS_INS;
             case DELETION: return ARS_DEL;
+            case MIXED: return ARS_MIX;
             default:
                 throw new IllegalStateException("Not supported yet: " + type);
         }

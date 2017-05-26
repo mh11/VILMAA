@@ -50,7 +50,7 @@ public class GvcfToVariantMapper extends HbaseTableMapper {
         Region targetRegion = store.getTargetRegion();
         this.gethBaseAlleleRegionTransfer().transfer(chromosome, targetRegion, store, (var, cnt) -> {
             Put put = this.alleleCountToHBaseConverter.convertPut(
-                    var.getChromosome(), var.getStart(), var.getReference(), var.getAlternate(), var.getType(), cnt);
+                    var.getChromosome(), var.getStart(), var.getReference(), var.getAlternate(), cnt);
             try {
                 ctx.write(new ImmutableBytesWritable(put.getRow()), put);
             } catch (IOException e) {

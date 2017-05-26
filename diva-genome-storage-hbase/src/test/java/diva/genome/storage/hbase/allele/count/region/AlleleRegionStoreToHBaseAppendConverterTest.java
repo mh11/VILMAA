@@ -82,6 +82,7 @@ public class AlleleRegionStoreToHBaseAppendConverterTest {
         testInsertion(15, 3, true);
         testInsertion(19, 3, true);
         testInsertion(20, 3, false);
+        testInsertion(21, 3, false);
     }
 
     private void testInsertion(int start, int length, boolean included) {
