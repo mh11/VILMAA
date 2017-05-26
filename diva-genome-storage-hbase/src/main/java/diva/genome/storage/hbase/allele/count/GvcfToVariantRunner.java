@@ -147,7 +147,8 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
         public void doMap(Result value) throws IOException, InterruptedException {
             ctxt.currWriteKey = null; // reset
             ctxt.currWriteValue = null; // reset
-            this.map(null, value, ctxt);
+            ImmutableBytesWritable key = new ImmutableBytesWritable(value.getRow());
+            this.map(key, value, ctxt);
         }
 
         public class MyCtxt extends Context {
