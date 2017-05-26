@@ -2,6 +2,7 @@ package diva.genome.storage.hbase.allele.stats;
 
 import diva.genome.analysis.models.variant.stats.HBaseToVariantStatisticsConverter;
 import diva.genome.analysis.models.variant.stats.VariantStatistics;
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter;
 import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
@@ -94,7 +95,7 @@ public class AlleleStatsMapper extends AnalysisStatsMapper {
     @Override
     protected Variant convert(Result value) {
         this.currValue = value;
-        return getHelper().extractVariantFromVariantRowKey(value.getRow()); // dummy variant
+        return VariantHbaseUtil.inferAndSetType(getHelper().extractVariantFromVariantRowKey(value.getRow())); // dummy variant
     }
 
     @Override

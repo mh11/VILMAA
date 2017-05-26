@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.stats;
 
 import diva.genome.analysis.models.variant.stats.VariantStatistics;
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToVariantConverter;
 import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
@@ -72,7 +73,7 @@ public class AlleleStatsCalculator {
         }
         HashMap<Integer, List<Integer>> refMap = new HashMap<>(currAllele.getReference());
         refMap.remove(NO_CALL);
-        if (!(variant.getType().equals(VariantType.INDEL) && variant.getStart() > variant.getEnd())) {
+        if (!VariantHbaseUtil.isInsertion(variant)) {
             currAllele.getAltMap().remove(INS_SYMBOL); // Ignore insertion for ALL except INSERTION.
         }
 

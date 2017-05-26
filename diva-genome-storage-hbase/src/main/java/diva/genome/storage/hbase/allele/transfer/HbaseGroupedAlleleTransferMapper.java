@@ -174,7 +174,7 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
 
         Predicate<Pair<Variant, AlleleCountPosition>> isIndelFunction = p -> {
             Variant var = p.getLeft();
-            return var.getType().equals(VariantType.INDEL) && var.getStart() > var.getEnd();
+            return var.getType().equals(VariantType.INSERTION);
         };
         Predicate<Pair<Variant, AlleleCountPosition>> isNotIndelFunction = i -> !isIndelFunction.test(i);
 
@@ -191,7 +191,7 @@ public class HbaseGroupedAlleleTransferMapper  extends AbstractVariantTableMapRe
     protected Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
         this.alleleCombiner.combine(variant, from, to, this.deletionEnds);
         return this.converter.convertPut(variant.getChromosome(), variant.getStart(),
-                variant.getReference(), variant.getAlternate(), variant.getType(), to);
+                variant.getReference(), variant.getAlternate(), to);
     }
 
 

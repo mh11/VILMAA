@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.transfer;
 
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.AlleleCountToHBaseConverter;
 import diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter;
@@ -25,6 +26,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import static diva.genome.storage.hbase.VariantHbaseUtil.*;
 
 /**
  * Created by mh719 on 28/01/2017.
@@ -94,7 +97,7 @@ public class HbaseTransferAlleleMapper extends AbstractVariantTableMapReduce {
                     context.getCounter("OPENCGA", "META_ROW").increment(1);
                     continue;
                 }
-                Variant variant = getHelper().extractVariantFromVariantRowKey(result.getRow());
+                Variant variant = inferAndSetType(getHelper().extractVariantFromVariantRowKey(result.getRow()));
                 if (variant.getStart() > referencePosition && !positionBuffer.isEmpty()) {
                     getLog().info("Process buffer of {} for position ... ", positionBuffer.size(), referencePosition);
                     context.getCounter("OPENCGA", "BUFFER-process").increment(1);
@@ -161,6 +164,7 @@ public class HbaseTransferAlleleMapper extends AbstractVariantTableMapReduce {
             case INDEL:
             case INSERTION:
             case DELETION:
+            case MIXED:
                 overlapFunction.accept(this.deletionEnds, toBean);
                 break;
             default:
@@ -203,10 +207,7 @@ public class HbaseTransferAlleleMapper extends AbstractVariantTableMapReduce {
             submit.accept(putNew);
         };
 
-        Predicate<Pair<Result, Variant>> isIndelFunction = p -> {
-            Variant var = p.getRight();
-            return var.getType().equals(VariantType.INDEL) && var.getStart() > var.getEnd();
-        };
+        Predicate<Pair<Result, Variant>> isIndelFunction = p -> VariantHbaseUtil.isInsertion(p.getRight());
         Predicate<Pair<Result, Variant>> isNotIndelFunction = i -> !isIndelFunction.test(i);
 
         // Only INDELs first -> There is no overlap with Deletions starting at same position
@@ -221,7 +222,7 @@ public class HbaseTransferAlleleMapper extends AbstractVariantTableMapReduce {
     protected Put newTransfer(Variant variant, AlleleCountPosition from, AlleleCountPosition to) {
         this.alleleCombiner.combine(variant, from, to, this.deletionEnds);
         return this.converter.convertPut(variant.getChromosome(), variant.getStart(),
-                variant.getReference(), variant.getAlternate(), variant.getType(), to);
+                variant.getReference(), variant.getAlternate(), to);
     }
 
     protected void checkDeletionOverlapMap(Integer start) {

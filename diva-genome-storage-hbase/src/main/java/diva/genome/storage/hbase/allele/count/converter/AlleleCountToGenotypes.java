@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.count.converter;
 
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.commons.lang3.StringUtils;
@@ -81,7 +82,7 @@ public class AlleleCountToGenotypes {
 
         HashMap<Integer, List<Integer>> refMap = new HashMap<>(currAllele.getReference());
         refMap.remove(NO_CALL);
-        if (!(variant.getType().equals(VariantType.INDEL) && variant.getStart() > variant.getEnd())) {
+        if (!VariantHbaseUtil.isInsertion(variant)) {
             currAllele.getAltMap().remove(INS_SYMBOL); // Ignore insertion for ALL except INSERTION.
         }
 
@@ -213,7 +214,7 @@ public class AlleleCountToGenotypes {
             }
             if (StringUtils.equals(k, INS_SYMBOL)) {
                 // Only for INSERTIONS
-                if (variant.getType().equals(VariantType.INDEL) && variant.getStart() > variant.getEnd()) {
+                if (VariantHbaseUtil.isInsertion(variant)) {
                     k = DEL_SYMBOL;
                 } else {
                     // Else Ignore

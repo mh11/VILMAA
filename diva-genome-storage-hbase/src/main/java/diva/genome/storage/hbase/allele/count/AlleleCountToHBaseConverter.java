@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.count;
 
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.client.Append;
@@ -36,7 +37,7 @@ public class AlleleCountToHBaseConverter {
         this.family = family;
     }
 
-    public Put convertPut(String chromosome, Integer position, String ref, String alt, VariantType type, AlleleCountPosition count) {
+    public Put convertPut(String chromosome, Integer position, String ref, String alt, AlleleCountPosition count) {
         Put put = new Put(buildRowKey(chromosome, position, ref, alt));
         boolean doSend = convertVariant(count, (col, val) -> put.addColumn(getFamily(), col, val));
         boolean refVal = convertReference(count, (col, val) -> put.addColumn(getFamily(), col, val));
@@ -44,6 +45,7 @@ public class AlleleCountToHBaseConverter {
             throw new IllegalStateException("Variant has no data to send: "
                     + chromosome + ":" + position + ":" + ref + ":" + alt);
         }
+        VariantType type = VariantHbaseUtil.inferType(ref, alt);
         put.addColumn(
                 getFamily(),
                 VariantPhoenixHelper.VariantColumn.TYPE.bytes(),

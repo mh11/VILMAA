@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.allele.stats;
 
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.AlleleCountPosition;
 import diva.genome.storage.hbase.allele.count.HBaseToAlleleCountConverter;
 import org.apache.hadoop.hbase.client.Result;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static diva.genome.storage.hbase.VariantHbaseUtil.*;
 import static diva.genome.storage.hbase.allele.count.HBaseAlleleCalculator.NO_CALL;
 
 /**
@@ -64,15 +66,8 @@ public class VariantTypeSummaryMapper extends AbstractHBaseMapReduce<NullWritabl
         if(!Bytes.startsWith(value.getRow(), this.studiesRow)) {
             try {
                 this.getLog().info("Convert Variant ...");
-                Variant variant = this.getHelper().extractVariantFromVariantRowKey(value.getRow());
+                Variant variant = inferAndSetType(this.getHelper().extractVariantFromVariantRowKey(value.getRow()));
                 VariantType type = variant.getType();
-                if (type.equals(VariantType.INDEL)) {
-                    if (variant.getStart() > variant.getEnd()) {
-                        type = VariantType.INSERTION;
-                    } else {
-                        type = VariantType.DELETION;
-                    }
-                }
                 context.getCounter("OPENCGA.HBASE", "variants-converted").increment(1L);
                 this.getLog().info("Extract Allele counts ...");
                 double opr = calculateOpr(value);

@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.exporter;
 
 import com.google.common.collect.BiMap;
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
 import diva.genome.storage.models.alleles.avro.AlleleVariant;
@@ -170,7 +171,7 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
     }
 
     protected boolean isValid(Result value) {
-        Variant variant = getHelper().extractVariantFromVariantRowKey(value.getRow());
+        Variant variant = VariantHbaseUtil.inferAndSetType(getHelper().extractVariantFromVariantRowKey(value.getRow()));
         return isValidOpr(value, variant) && isValidMaf(value, variant);
     }
 
