@@ -93,13 +93,16 @@ public abstract class AbstractLocalRunner extends Configured {
             Integer end = pair.getRight().getRight();
             getLog().info("Restrict scan for region {}:{}-{}", chrom, start, end);
             /* start */
-            scan.setStartRow(GenomeHelper.generateVariantRowKey(
-                    chrom, start, StringUtils.EMPTY, Allele.NO_CALL_STRING));
+            scan.setStartRow(generateRowKey(chrom, start));
             /* end */
-            scan.setStopRow(GenomeHelper.generateVariantRowKey(
-                    chrom, end, StringUtils.EMPTY, Allele.NO_CALL_STRING));
+            scan.setStopRow(generateRowKey(chrom, end));
         }
         return scan;
+    }
+
+    protected byte[] generateRowKey(String chrom, Integer position) {
+        return GenomeHelper.generateVariantRowKey(
+                chrom, position, StringUtils.EMPTY, Allele.NO_CALL_STRING);
     }
 
     protected void configFromArgs(String[] args, int fixedSizeArgs) {

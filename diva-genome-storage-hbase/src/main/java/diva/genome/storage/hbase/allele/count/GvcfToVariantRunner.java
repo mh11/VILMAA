@@ -12,6 +12,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.security.Credentials;
@@ -39,13 +40,19 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
     private MyMapper myMapper;
 
     @Override
-    protected void map(Scan scan, String variantTable) {
+    protected byte[] generateRowKey(String chrom, Integer position) {
+        return getHelper().generateBlockIdAsBytes(chrom, position);
+    }
+
+    @Override
+    protected void map(Scan scan, String xxx) {
+        String archiveTable = Bytes.toString(getHelper().getIntputTable());
         try {
             myMapper = new MyMapper();
             MyMapper.MyCtxt ctxt = myMapper.buildContext();
             ctxt.configuration = getConf();
             myMapper.setup(ctxt);
-            prepareVcf(() -> super.map(scan, variantTable));
+            prepareVcf(() -> super.map(scan, archiveTable));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         } catch (InterruptedException e) {
