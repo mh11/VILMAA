@@ -64,7 +64,6 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
         try {
             myMapper = new MyMapper();
             MyMapper.MyCtxt ctxt = myMapper.buildContext();
-            ctxt.currWriteValue = new ArrayList<>();
             ctxt.configuration = getConf();
             myMapper.setup(ctxt);
             prepareVcf(() -> super.map(scan, archiveTable));
@@ -165,7 +164,7 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
 
         public void doMap(Result value) throws IOException, InterruptedException {
             ctxt.currWriteKey = null; // reset
-            ctxt.currWriteValue = null; // reset
+            ctxt.currWriteValue.clear(); // reset
             ImmutableBytesWritable key = new ImmutableBytesWritable(value.getRow());
             this.map(key, value, ctxt);
         }
@@ -178,7 +177,11 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
         public class MyCtxt extends Context {
             public Configuration configuration;
             public ImmutableBytesWritable currWriteKey;
-            public List<Mutation> currWriteValue = new ArrayList<>();
+            public final List<Mutation> currWriteValue;
+
+            public MyCtxt() {
+                this.currWriteValue = new ArrayList<>();
+            }
 
             @Override
             public InputSplit getInputSplit() {
