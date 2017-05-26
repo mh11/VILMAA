@@ -196,6 +196,9 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
         for (Cell cell : cells) {
             List<Variant> convert = getResultConverter().convert(cell, true);
             for (Variant variant : convert) {
+                if (variant.getEnd() > variant.getStart() && variant.getLength() == 1) {
+                    variant.setLength((variant.getEnd() - variant.getStart()) + 1);
+                }
                 completeAlternateCoordinates(variant);
                 variantConsumer.accept(variant);
             }
