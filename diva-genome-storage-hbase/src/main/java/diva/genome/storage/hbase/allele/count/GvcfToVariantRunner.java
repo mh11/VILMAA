@@ -40,7 +40,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Created by mh719 on 25/05/2017.
@@ -76,12 +78,16 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
     protected void map(Result result) throws IOException {
         try {
             myMapper.doMap(result);
-            ImmutableBytesWritable key = myMapper.buildContext().currWriteKey;
-            Put value = (Put) myMapper.buildContext().currWriteValue;
-            if (null != value) {
-                Result res = Result.create(value.getFamilyCellMap().get(getHelper().getColumnFamily()));
-                writeVcf(res);
+//            ImmutableBytesWritable key = myMapper.buildContext().currWriteKey;
+            List<Mutation> mutList = myMapper.buildContext().currWriteValue;
+            for (Mutation mutation : mutList) {
+                Put value = (Put) mutation;
+                if (null != value) {
+                    Result res = Result.create(value.getFamilyCellMap().get(getHelper().getColumnFamily()));
+                    writeVcf(res);
+                }
             }
+            myMapper.buildContext().currWriteValue.clear();
         } catch (InterruptedException e) {
             throw new IOException(e);
         }
@@ -171,7 +177,7 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
         public class MyCtxt extends Context {
             public Configuration configuration;
             public ImmutableBytesWritable currWriteKey;
-            public Mutation currWriteValue;
+            public List<Mutation> currWriteValue = new ArrayList<>();
 
             @Override
             public InputSplit getInputSplit() {
@@ -196,7 +202,7 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
             @Override
             public void write(ImmutableBytesWritable o, Mutation o2) throws IOException, InterruptedException {
                 this.currWriteKey = o;
-                this.currWriteValue = o2;
+                this.currWriteValue.add(o2);
             }
 
             @Override
