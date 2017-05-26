@@ -116,7 +116,7 @@ public abstract class AbstractAlleleCalculator implements AlleleCalculator {
         }
         int[] allelesIdx = new Genotype(gt).getAllelesIdx();
         for (Integer idx : allelesIdx) {
-            Integer ad = idx < 0 || depth.isEmpty() ? depthCount : depth.get(idx);
+            Integer ad = idx < 0 || depth.isEmpty() || idx >= depth.size() ? depthCount : depth.get(idx);
             AlleleInfo info = retMap.get(idx);
             if (null == info) {
                 info = new AlleleInfo(1, ad);
