@@ -25,6 +25,8 @@ import static org.opencb.opencga.storage.hadoop.variant.index.VariantTableMapper
  * Created by mh719 on 22/01/2017.
  */
 public class HbaseTableMapper extends AbstractVariantTableMapReduce {
+    public static final String END = "END";
+    public static final String DIVA_GENOME_STORAGE_ALLELE_COUNT_FIXEND = "diva.genome.storage.allele.count.fixend";
     private Map<String, Integer> sampleNameToSampleId;
     private volatile ExecutorService submitterPool;
     private final BlockingDeque<Collection<Append>> submitQueue = new LinkedBlockingDeque<>(2); // 1.5 x slice length
@@ -32,6 +34,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
     private final AtomicBoolean asyncFinished = new AtomicBoolean(false);
     private volatile Future<String> submitFuture;
     private volatile AlleleRegionStoreToHBaseAppendConverter converter;
+    private boolean fixEndPosition = false;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -47,6 +50,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
                     f -> context.getCounter(COUNTER_GROUP_NAME, "async-submitted").increment(f.size()));
         }
         converter = new AlleleRegionStoreToHBaseAppendConverter(getHelper().getColumnFamily(), getHelper().getStudyId());
+        this.fixEndPosition = context.getConfiguration().getBoolean(DIVA_GENOME_STORAGE_ALLELE_COUNT_FIXEND, false);
     }
 
     public void setAsyncPut(boolean asyncPut) {
@@ -192,10 +196,17 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
     }
 
     void processCells(Collection<Cell> cells, Consumer<Variant> variantConsumer) {
+        String studyId = getStudyConfiguration().getStudyId() + "";
         int i = 0;
         for (Cell cell : cells) {
             List<Variant> notResolved = getResultConverter().convert(cell, false);
-            for (Variant variant : notResolved) {
+            for (Variant variant : notResolved) { // fix that the read length is not set properly
+                if (fixEndPosition) {
+                    if (variant.getStudy(studyId).getFiles().get(0).getAttributes().containsKey(END)) {
+                        variant.setEnd(variant.getEnd() - 1);
+                        variant.getStudy(studyId).getFiles().get(0).getAttributes().put(END, variant.getEnd().toString());
+                    }
+                }
                 if (variant.getEnd() > variant.getStart() && variant.getLength() == 1) {
                     variant.setLength((variant.getEnd() - variant.getStart()) + 1);
                 }
