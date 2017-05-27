@@ -203,7 +203,7 @@ public class HbaseTableMapper extends AbstractVariantTableMapReduce {
             for (Variant variant : notResolved) { // fix that the read length is not set properly
                 if (fixEndPosition) {
                     if (variant.getStudy(studyId).getFiles().get(0).getAttributes().containsKey(END)) {
-                        variant.setEnd(variant.getEnd() - 1);
+                        variant.setEnd(Math.max(variant.getEnd() - 1, variant.getStart())); // ensure start <= end
                         variant.getStudy(studyId).getFiles().get(0).getAttributes().put(END, variant.getEnd().toString());
                     }
                 }
