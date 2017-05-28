@@ -53,17 +53,19 @@ public class GvcfToVariantMapper extends HbaseTableMapper {
         Collections.sort(lst);
         // Iterate from first to last in order
         for (Integer position : lst) {
-            this.gethBaseAlleleRegionTransfer().transfer(chromosome, new PointRegion(null, position), store, (var, cnt) -> {
-                Put put = this.alleleCountToHBaseConverter.convertPut(
-                        var.getChromosome(), var.getStart(), var.getReference(), var.getAlternate(), cnt);
-                try {
-                    getContext().write(new ImmutableBytesWritable(put.getRow()), put);
-                } catch (IOException e) {
-                    throw new IllegalStateException("Issue submitting " + var, e);
-                } catch (InterruptedException e) {
-                    throw new IllegalStateException("Issue submitting " + var, e);
-                }
-            });
+            if (targetRegion.overlap(position)) { // make sure Deletions don't get recorded more than once
+                this.gethBaseAlleleRegionTransfer().transfer(chromosome, new PointRegion(null, position), store, (var, cnt) -> {
+                    Put put = this.alleleCountToHBaseConverter.convertPut(
+                            var.getChromosome(), var.getStart(), var.getReference(), var.getAlternate(), cnt);
+                    try {
+                        getContext().write(new ImmutableBytesWritable(put.getRow()), put);
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Issue submitting " + var, e);
+                    } catch (InterruptedException e) {
+                        throw new IllegalStateException("Issue submitting " + var, e);
+                    }
+                });
+            }
         }
         return Collections.emptyList();
     }
