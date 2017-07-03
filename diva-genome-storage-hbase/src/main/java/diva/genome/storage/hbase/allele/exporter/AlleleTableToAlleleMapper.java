@@ -3,7 +3,6 @@ package diva.genome.storage.hbase.allele.exporter;
 import com.google.common.collect.BiMap;
 import diva.genome.storage.hbase.VariantHbaseUtil;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
-import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
 import diva.genome.storage.models.alleles.avro.AlleleVariant;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
@@ -29,6 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static diva.genome.storage.hbase.allele.AnalysisExportDriver.*;
+import static diva.genome.storage.hbase.allele.exporter.ExportOprFilter.*;
 
 /**
  * Export DIVA allele style AVRO file and allow to filter on MAF and OPR on different cohorts. <br>
@@ -38,17 +38,14 @@ import static diva.genome.storage.hbase.allele.AnalysisExportDriver.*;
  * Created by mh719 on 24/02/2017.
  */
 public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Object> {
-    private static final String CHR_Y = "Y";
-    private static String DEFAULT_CHROM = "other";
-
     private HBaseAlleleCountsToAllelesConverter hBaseAlleleCountsToAllelesConverter;
 
     private byte[] studiesRow;
     protected volatile boolean withGenotype;
     protected volatile Set<String> exportCohort;
     protected volatile Set<Integer> returnedSampleIds;
-    protected volatile Map<String, Map<PhoenixHelper.Column, Float>> chromOprFilters = new HashMap<>();
     protected volatile Map<String, Map<PhoenixHelper.Column, Float>> chromMafFilters = new HashMap<>();
+    private ExportOprFilter oprFilter;
 
     private Map<PhoenixHelper.Column, Float> buildFilterMap(String[] cohortArr, Float cutoff, Map<String, Integer> cohortMap, Function<Integer, PhoenixHelper.Column> toColumn) {
         if (null == cohortArr || cohortArr.length == 0) {
@@ -78,37 +75,6 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
                 defCutoff);
     }
 
-    private void setupOprFilters(Configuration conf, StudyConfiguration sc) {
-        int studyId = sc.getStudyId();
-        BiMap<String, Integer> cohortMap = sc.getCohortIds();
-        float defCutoff = conf.getFloat(CONFIG_ANALYSIS_OPR_VALUE, 0.0F);
-        Function<Integer, PhoenixHelper.Column> oprFunction = cid ->  AlleleTablePhoenixHelper.getOprColumn(studyId, cid);
-        Map<PhoenixHelper.Column, Float> oprDefMap = buildFilterMap(
-                conf.getStrings(CONFIG_ANALYSIS_OPR_COHORTS),
-                defCutoff,
-                cohortMap,
-                oprFunction);
-        if (!oprDefMap.isEmpty()) {
-            chromOprFilters.put(DEFAULT_CHROM, oprDefMap);
-        }
-        getLog().info("Using {} cohorts to filter on opr {}",
-                chromOprFilters.getOrDefault(DEFAULT_CHROM, Collections.emptyMap()).keySet().stream().map(c -> c.column()).collect(Collectors.toList()),
-                defCutoff);
-
-        Float yCutoff = conf.getFloat(CONFIG_ANALYSIS_OPR_Y_VALUE, 0.0F);
-        Map<PhoenixHelper.Column, Float> oprYMap = buildFilterMap(
-                conf.getStrings(CONFIG_ANALYSIS_OPR_Y_COHORTS),
-                yCutoff,
-                cohortMap,
-                oprFunction);
-        if (!oprYMap.isEmpty()) {
-            chromOprFilters.put(CHR_Y, oprYMap);
-        }
-        getLog().info("Using {} cohorts for Y to filter on opr {}",
-                chromOprFilters.getOrDefault(CHR_Y, Collections.emptyMap()).keySet().stream().map(c -> c.column()).collect(Collectors.toList()),
-                yCutoff);
-    }
-
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
@@ -134,7 +100,11 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
             throw new IllegalStateException("Cohort sample(s) not indexed: " + invalid);
         }
 
-        setupOprFilters(context.getConfiguration(), sc);
+        this.oprFilter = new ExportOprFilter(
+                getHelper().getColumnFamily(),
+                (v) -> getHelper().extractVariantFromVariantRowKey(v.getRow()).getChromosome());
+        this.oprFilter.configure(getStudyConfiguration(), context.getConfiguration());
+
         setupMafFilters(context.getConfiguration(), sc);
 
         getLog().info("Export Genotype [{}] of {} samples ... ", withGenotype, returnedSampleIds.size());
@@ -176,22 +146,7 @@ public class AlleleTableToAlleleMapper extends AbstractHBaseMapReduce<Object, Ob
     }
 
     protected boolean isValidOpr(Result value, Variant variant) {
-        if (this.chromOprFilters.isEmpty()) {
-            return true;
-        }
-        Map<PhoenixHelper.Column, Float> filterMap = this.chromOprFilters.get(variant.getChromosome());
-        if (null == filterMap) {
-            filterMap = this.chromOprFilters.getOrDefault(DEFAULT_CHROM, Collections.emptyMap());
-        }
-        for (Map.Entry<PhoenixHelper.Column, Float> entry : filterMap.entrySet()) {
-            Float fValue = extractFloat(value, entry.getKey());
-            if (null != fValue) {
-                if (fValue < entry.getValue()) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        return this.oprFilter.isValidOpr(value, variant);
     }
 
     protected boolean isValidMaf(Result value, Variant variant) {

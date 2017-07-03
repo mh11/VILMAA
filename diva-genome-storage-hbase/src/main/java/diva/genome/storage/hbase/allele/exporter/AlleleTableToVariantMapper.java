@@ -1,7 +1,6 @@
 package diva.genome.storage.hbase.allele.exporter;
 
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToVariantConverter;
-import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
@@ -27,10 +26,8 @@ import static diva.genome.storage.hbase.allele.AnalysisExportDriver.*;
 public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
 
     private volatile HBaseAlleleCountsToVariantConverter countsToVariantConverter;
-    private double oprCutoff;
+    private ExportOprFilter oprFilter;
     private float cohortMafCutoff;
-    private Set<String> cohortOprFields;
-    private Set<String> cohortOprCellFields;
     private Set<String> validCohorts;
     private Set<String> cohortMafField;
     private Set<String> cohortMafCellField;
@@ -44,20 +41,14 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
         this.countsToVariantConverter.setParseAnnotations(true);
         this.countsToVariantConverter.setReturnSamples(this.returnedSamples);
         this.countsToVariantConverter.setStudyNameAsStudyId(true);
-        this.oprCutoff = context.getConfiguration().getDouble(CONFIG_ANALYSIS_OPR_VALUE, 0.95);
-        this.cohortOprFields = new HashSet<>(Arrays.asList(
-                // 100, 125 and 150 bp technical cohorts as default
-                context.getConfiguration().getStrings(CONFIG_ANALYSIS_OPR_COHORTS, StudyEntry.DEFAULT_COHORT)
-        ));
+        this.oprFilter = new ExportOprFilter(
+                getHelper().getColumnFamily(),
+                (v) -> getHelper().extractVariantFromVariantRowKey(v.getRow()).getChromosome());
+        this.oprFilter.configure(getStudyConfiguration(), context.getConfiguration());
+
         // Cohort name to Cohort ID
         int studyId = getHelper().getStudyId();
         studyName = getStudyConfiguration().getStudyName();
-        this.cohortOprCellFields = this.cohortOprFields.stream()
-                .map(f -> AlleleTablePhoenixHelper.getOprColumn(
-                        studyId,
-                        getStudyConfiguration().getCohortIds().get(f)).column())
-                .collect(Collectors.toSet());
-        getLog().info("Use OPR cohort {} with {} for cutoff {} to filter ... ", this.cohortOprFields, this.cohortOprCellFields, oprCutoff);
         this.cohortMafField = new HashSet<>(Arrays.asList(context.getConfiguration().get(CONFIG_ANALYSIS_EXPORT_MAF_COHORTS, StudyEntry.DEFAULT_COHORT)));
         this.cohortMafCellField =  this.cohortMafField.stream().map(f ->
                 VariantPhoenixHelper.getMafColumn(studyId, getStudyConfiguration().getCohortIds().get(f)).column())
@@ -76,9 +67,6 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
         if (super.isMetaRow(value)) {
             return true;
         }
-        if (oprCutoff < 0) {
-            return false; // Not Meta
-        }
         if (!doIncludeMaf(value)) {
             return true; // ignore if not seen in cohort.
         }
@@ -87,16 +75,7 @@ public class AlleleTableToVariantMapper extends AnalysisToFileMapper {
     }
 
     protected boolean doIncludeOpr(Result value) {
-        for (String oprField : this.cohortOprCellFields) {
-            Float opr = extractFloat(value, oprField); // low level OPR access for faster processing
-            if (null == opr) {
-                return false;
-            }
-            if (opr < this.oprCutoff) {
-                return false; // One OPR is below cutoff -> exclude
-            }
-        }
-        return true;
+        return this.oprFilter.isValidOpr(value);
     }
 
     private Float extractFloat(Result value, String field) {
