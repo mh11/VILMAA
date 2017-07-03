@@ -1,6 +1,7 @@
 package diva.genome.storage.hbase.allele.exporter;
 
 import com.google.common.collect.BiMap;
+import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -64,7 +65,7 @@ public class ExportOprFilter {
         int studyId = sc.getStudyId();
         BiMap<String, Integer> cohortMap = sc.getCohortIds();
         Map<PhoenixHelper.Column, Float> oprMap = buildFilterMap(
-                cohorts, oprCutoff, cohortMap, cid -> VariantPhoenixHelper.getMafColumn(studyId, cid));
+                cohorts, oprCutoff, cohortMap, cid -> AlleleTablePhoenixHelper.getOprColumn(studyId, cid));
         if (!oprMap.isEmpty()) {
             chromOprFilters.put(chromosome, oprMap);
         }
