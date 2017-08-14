@@ -35,6 +35,8 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
     private Set<String> exportCohort;
     private Map<String, Set<Integer>> cohorts;
     private GeneSummaryReadWrite readWrite;
+    private String idxCohort;
+    private String ctlCohort;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -52,9 +54,9 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         String analysistype = context.getConfiguration().get(CONFIG_ANALYSIS_MR_ANALYSISTYPE, "");
         getLog().info("Found {} analysis type ", analysistype);
 
-        String idxCohort = context.getConfiguration().get(CONFIG_ANALYSIS_ASSOC_CASES, "");
+        idxCohort = context.getConfiguration().get(CONFIG_ANALYSIS_ASSOC_CASES, "");
         getLog().info("Use {} as cases cohort ", idxCohort);
-        String ctlCohort = context.getConfiguration().get(CONFIG_ANALYSIS_ASSOC_CTL, "");
+        ctlCohort = context.getConfiguration().get(CONFIG_ANALYSIS_ASSOC_CTL, "");
         getLog().info("Use {} as control cohort ", ctlCohort);
 
         float ctlMafAuto = context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF_AUTO, 0.0001F);
@@ -115,8 +117,8 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
                 Set<Integer> affected = getAffected(alleles.getGenotypes());
                 Set<Integer> affectedCases = new HashSet<>();
                 Set<Integer> affectedCtls = new HashSet<>();
-                Set<Integer> cases = cohorts.get("PAH");
-                Set<Integer> ctl = cohorts.get("PAH_CONTROL_UNRELATED");
+                Set<Integer> cases = cohorts.get(idxCohort);
+                Set<Integer> ctl = cohorts.get(ctlCohort);
                 affected.forEach(id -> {
                     if (ctl.contains(id)) {
                         affectedCtls.add(id);
