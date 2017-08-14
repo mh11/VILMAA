@@ -37,6 +37,10 @@ public class GenomeAnalysis {
         filters.add(new ImmutablePair<>(name, filter));
     }
 
+    public List<Predicate<AlleleVariant>> getFilters(String id) {
+        return filters.stream().filter(p -> p.getLeft().equals(id)).map(p -> p.getRight()).collect(Collectors.toList());
+    }
+
     public void setConsequenceTypeFilter(BiPredicate<AlleleVariant, ConsequenceType> filter) {
         if (csqFilters.get() != null) {
             throw new IllegalStateException("Consequence type filter already registered!!!");
@@ -70,6 +74,7 @@ public class GenomeAnalysis {
         analysis.registerFilter("UK10K_TWINSUK", new PopulationAlleleFrequencyFilter(popFrequ, "UK10K_TWINSUK", "ALL"));
         analysis.registerFilter("UK10K_ALSPAC", new PopulationAlleleFrequencyFilter(popFrequ, "UK10K_ALSPAC", "ALL"));
         analysis.registerFilter("1kG_phase3", new PopulationAlleleFrequencyFilter(popFrequ, "1kG_phase3", "ALL"));
+        analysis.registerFilter("GNOMAD_GENOMES", new PopulationAlleleFrequencyFilter(popFrequ, "GNOMAD_GENOMES", "ALL"));
         switch (type) {
             case "nonsense":
                 addNonsenseOptions(analysis);

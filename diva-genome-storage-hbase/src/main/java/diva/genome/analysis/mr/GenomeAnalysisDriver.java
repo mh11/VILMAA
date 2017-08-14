@@ -47,8 +47,12 @@ public class GenomeAnalysisDriver extends AbstractAlleleDriver {
     public static final String CONFIG_ANALYSIS_FILTER_POP_AF = "diva.genome.analysis.filter.pop.af";
     public static final String CONFIG_ANALYSIS_FILTER_CTL_MAF_AUTO = "diva.genome.analysis.filter.ctrl.maf.auto";
     public static final String CONFIG_ANALYSIS_FILTER_CTL_MAF_X = "diva.genome.analysis.filter.ctrl.maf.X";
-    public static final String CONFIG_ANALYSIS_FILTER_OPR = "diva.genome.analysis.filter.opr";
-    public static final String CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS = "diva.genome.analysis.prefilter.opr.cohorts";
+    public static final String CONFIG_ANALYSIS_FILTER_OPR =              "diva.genome.analysis.filter.opr";
+    public static final String CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS =   "diva.genome.analysis.prefilter.opr.cohorts";
+    public static final String CONFIG_ANALYSIS_FILTER_OPR_X =            "diva.genome.analysis.filter.opr.x";
+    public static final String CONFIG_ANALYSIS_PREFILTER_OPR_X_COHORTS = "diva.genome.analysis.prefilter.opr.x.cohorts";
+    public static final String CONFIG_ANALYSIS_FILTER_OPR_Y =            "diva.genome.analysis.filter.opr.y";
+    public static final String CONFIG_ANALYSIS_PREFILTER_OPR_Y_COHORTS = "diva.genome.analysis.prefilter.opr.y.cohorts";
     public static final String CONFIG_ANALYSIS_FILTER_COMBINED_CADD = "diva.genome.analysis.analysis.combined.cadd";
 
     private Path outAvroFile;

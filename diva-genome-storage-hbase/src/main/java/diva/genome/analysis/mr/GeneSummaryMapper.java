@@ -2,6 +2,7 @@ package diva.genome.analysis.mr;
 
 import com.google.common.collect.BiMap;
 import diva.genome.analysis.GenomeAnalysis;
+import diva.genome.analysis.filter.OverallPassRateFilter;
 import diva.genome.analysis.models.avro.GeneSummary;
 import diva.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToAllelesConverter;
 import diva.genome.storage.models.alleles.avro.AlleleVariant;
@@ -19,6 +20,7 @@ import org.opencb.opencga.storage.hadoop.variant.GenomeHelper;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Predicate;
 
 import static diva.genome.analysis.mr.GenomeAnalysisDriver.*;
 import static diva.genome.storage.hbase.allele.AnalysisExportDriver.CONFIG_ANALYSIS_EXPORT_COHORTS;
@@ -98,6 +100,29 @@ public class GeneSummaryMapper extends AbstractHBaseMapReduce<Text, ImmutableByt
         converter.setCohortWhiteList(this.exportCohort);
         hBaseAlleleCountsToAllelesConverter = converter;
         this.analysis = GenomeAnalysis.buildAnalysis(analysistype, idxCohort, ctlCohort, popFreq, ctlMafAuto, ctlMafX, opr, oprCohorts, caddScore);
+        List<Predicate<AlleleVariant>> oprFilters = this.analysis.getFilters("OPR");
+        if (oprFilters.size() != 1) {
+            throw new IllegalStateException("Unexpected number of OPR filters found!!! " + oprFilters.size());
+        }
+        OverallPassRateFilter oprFilter = (OverallPassRateFilter) oprFilters.get(0);
+        if (context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_OPR_X, -1F) >= 0) {
+            HashSet<String> xCohort =
+                    new HashSet<>(
+                            Arrays.asList(
+                                    context.getConfiguration().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_X_COHORTS)));
+            oprFilter.addChromosomeFilter("X",
+                    context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_OPR_X, 0.0F),
+                    xCohort);
+        }
+        if (context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_OPR_Y, -1F) >= 0) {
+            HashSet<String> xCohort =
+                    new HashSet<>(
+                            Arrays.asList(
+                                    context.getConfiguration().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_Y_COHORTS)));
+            oprFilter.addChromosomeFilter("Y",
+                    context.getConfiguration().getFloat(CONFIG_ANALYSIS_FILTER_OPR_Y, 0.0F),
+                    xCohort);
+        }
     }
 
     @Override
