@@ -48,12 +48,12 @@ public class GenomeAnalysisDriver extends AbstractAlleleDriver {
     public static final String CONFIG_ANALYSIS_FILTER_CTL_MAF_AUTO = "diva.genome.analysis.filter.ctrl.maf.auto";
     public static final String CONFIG_ANALYSIS_FILTER_CTL_MAF_X = "diva.genome.analysis.filter.ctrl.maf.X";
     public static final String CONFIG_ANALYSIS_FILTER_OPR =              "diva.genome.analysis.filter.opr";
-    public static final String CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS =   "diva.genome.analysis.prefilter.opr.cohorts";
+    public static final String CONFIG_ANALYSIS_FILTER_OPR_COHORTS =      "diva.genome.analysis.filter.opr.cohorts";
     public static final String CONFIG_ANALYSIS_FILTER_OPR_X =            "diva.genome.analysis.filter.opr.x";
-    public static final String CONFIG_ANALYSIS_PREFILTER_OPR_X_COHORTS = "diva.genome.analysis.prefilter.opr.x.cohorts";
+    public static final String CONFIG_ANALYSIS_FILTER_OPR_X_COHORTS =    "diva.genome.analysis.filter.opr.x.cohorts";
     public static final String CONFIG_ANALYSIS_FILTER_OPR_Y =            "diva.genome.analysis.filter.opr.y";
-    public static final String CONFIG_ANALYSIS_PREFILTER_OPR_Y_COHORTS = "diva.genome.analysis.prefilter.opr.y.cohorts";
-    public static final String CONFIG_ANALYSIS_FILTER_COMBINED_CADD = "diva.genome.analysis.analysis.combined.cadd";
+    public static final String CONFIG_ANALYSIS_FILTER_OPR_Y_COHORTS =    "diva.genome.analysis.filter.opr.y.cohorts";
+    public static final String CONFIG_ANALYSIS_FILTER_COMBINED_CADD =    "diva.genome.analysis.analysis.combined.cadd";
 
     private Path outAvroFile;
 
@@ -123,10 +123,6 @@ public class GenomeAnalysisDriver extends AbstractAlleleDriver {
 
     @Override
     protected Scan createScan() {
-        Set<String> oprCohorts = new HashSet<>();
-        if (null != getConf().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS)){
-            oprCohorts.addAll(Arrays.asList(getConf().getStrings(CONFIG_ANALYSIS_PREFILTER_OPR_COHORTS)));
-        }
         String ctlCohort = getConf().get(CONFIG_ANALYSIS_ASSOC_CTL);
         float mafCutoff = getConf().getFloat(CONFIG_ANALYSIS_PREFILTER_CTL_MAF,
                 Math.max(getConf().getFloat(CONFIG_ANALYSIS_FILTER_CTL_MAF_AUTO, -1),
@@ -151,22 +147,6 @@ public class GenomeAnalysisDriver extends AbstractAlleleDriver {
             getLog().info("Register MAF filter {} on column {} ", mafCutoff, Bytes.toString(mafColumn));
 
             filterList.addFilter(mafCtlFilter);
-
-            float oprCutoff = getConf().getFloat(CONFIG_ANALYSIS_FILTER_OPR, 1);
-            /* OPR filter */
-            for (String cohort : oprCohorts) {
-                Integer oprCohortId = sc.getCohortIds().get(cohort);
-                PhoenixHelper.Column column = AlleleTablePhoenixHelper.getOprColumn(studyId, oprCohortId);
-                SingleColumnValueFilter oprFilter = new SingleColumnValueFilter(
-                        getHelper().getColumnFamily(),
-                        column.bytes(),
-                        CompareFilter.CompareOp.GREATER_OR_EQUAL,
-                        PFloat.INSTANCE.toBytes(oprCutoff));
-                oprFilter.setFilterIfMissing(false);
-                oprFilter.setLatestVersionOnly(true);
-                getLog().info("Register OPR filter {} on column {} ", oprCutoff, column.column());
-                filterList.addFilter(oprFilter);
-            }
 
             Scan scan = super.createScan();
             scan.setFilter(filterList);
