@@ -28,7 +28,7 @@ import java.util.Objects;
  */
 public class CheckCountTable extends Configured implements Tool {
 
-    public class CheckCountTableMapper extends TableMapper<ImmutableBytesWritable, Result> {
+    public static class CheckCountTableMapper extends TableMapper<ImmutableBytesWritable, Result> {
         private Logger logger = LoggerFactory.getLogger(this.getClass());
 
         private GenomeHelper genomeHelper;
