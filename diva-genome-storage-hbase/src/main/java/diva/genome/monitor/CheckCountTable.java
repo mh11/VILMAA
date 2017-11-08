@@ -34,16 +34,21 @@ public class CheckCountTable extends Configured implements Tool {
         private GenomeHelper genomeHelper;
         private String chromosome = null;
         private Integer position = null;
+        private byte[] storage;
 
         @Override
         protected void setup(Context context) throws IOException, InterruptedException {
             super.setup(context);
             genomeHelper = new GenomeHelper(context.getConfiguration());
+            this.storage = genomeHelper.generateVariantRowKey(GenomeHelper.DEFAULT_METADATA_ROW_KEY, 0);
         }
 
         @Override
         protected void map(ImmutableBytesWritable key, Result value, Context context) throws IOException,
                 InterruptedException {
+            if (Bytes.startsWith(key.copyBytes(), this.storage)) { // ignore _METADATA row
+                return;
+            }
             Variant variant = genomeHelper.extractVariantFromVariantRowKey(key.get());
             if (!variant.getType().equals(VariantType.NO_VARIATION)) {
                 context.getCounter("diva","variant").increment(1);
