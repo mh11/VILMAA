@@ -1,4 +1,4 @@
-package diva.genome.storage.hbase.allele.exporter;
+package diva.genome.storage.hbase.filter;
 
 import com.google.common.collect.BiMap;
 import diva.genome.storage.hbase.allele.transfer.AlleleTablePhoenixHelper;
@@ -11,7 +11,6 @@ import org.opencb.biodata.models.variant.StudyEntry;
 import org.opencb.biodata.models.variant.Variant;
 import org.opencb.opencga.storage.core.metadata.StudyConfiguration;
 import org.opencb.opencga.storage.hadoop.variant.index.phoenix.PhoenixHelper;
-import org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,36 +21,39 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static diva.genome.storage.hbase.allele.AnalysisExportDriver.*;
-
 /**
  * Created by mh719 on 03/07/2017.
  */
-public class ExportOprFilter {
-    public static final String DEFAULT_CHROM = "other";
-    public static final String CHR_Y = "Y";
-    public static final String CHR_X = "X";
+public class ExportOprFilter implements IHbaseVariantFilter {
+
+    public static final String CONFIG_ANALYSIS_OPR_COHORTS = "diva.genome.storage.allele.opr.cohorts";
+    public static final String CONFIG_ANALYSIS_OPR_VALUE = "diva.genome.storage.allele.opr.cutoff";
+    public static final String CONFIG_ANALYSIS_OPR_Y_COHORTS = "diva.genome.storage.allele.opr.y.cohorts";
+    public static final String CONFIG_ANALYSIS_OPR_Y_VALUE = "diva.genome.storage.allele.opr.y.cutoff";
+    public static final String CONFIG_ANALYSIS_OPR_X_COHORTS = "diva.genome.storage.allele.opr.x.cohorts";
+    public static final String CONFIG_ANALYSIS_OPR_X_VALUE = "diva.genome.storage.allele.opr.x.cutoff";
+
     private final byte[] columnFamily;
-    private final Function<Result, String> toChromosomeFunction;
     private Logger log = LoggerFactory.getLogger(this.getClass());
 
     protected volatile Map<String, Map<PhoenixHelper.Column, Float>> chromOprFilters = new HashMap<>();
 
-    public ExportOprFilter(byte[] columnFamily, Function<Result, String> toChromosome) {
+    public ExportOprFilter(byte[] columnFamily) {
         this.columnFamily = columnFamily;
-        this.toChromosomeFunction = toChromosome;
     }
 
-    public void configure(StudyConfiguration sc, Configuration conf) {
-        this.addDefaultOprFilter(sc,
+    public static ExportOprFilter build(StudyConfiguration sc, Configuration conf, byte[] columnFamily) {
+        ExportOprFilter filter = new ExportOprFilter(columnFamily);
+        filter.addDefaultOprFilter(sc,
                 conf.getFloat(CONFIG_ANALYSIS_OPR_VALUE, 0.99f),
                 conf.getStrings(CONFIG_ANALYSIS_OPR_COHORTS, StudyEntry.DEFAULT_COHORT));
-        this.addChromosomeOprFilter(CHR_Y, sc,
+        filter.addChromosomeOprFilter(CHR_Y, sc,
                 conf.getFloat(CONFIG_ANALYSIS_OPR_Y_VALUE, 0.99f),
                 conf.getStrings(CONFIG_ANALYSIS_OPR_Y_COHORTS, new String[]{}));
-        this.addChromosomeOprFilter(CHR_X, sc,
+        filter.addChromosomeOprFilter(CHR_X, sc,
                 conf.getFloat(CONFIG_ANALYSIS_OPR_X_VALUE, 0.99f),
                 conf.getStrings(CONFIG_ANALYSIS_OPR_X_COHORTS, new String[]{}));
+        return filter;
     }
 
     public void addDefaultOprFilter(StudyConfiguration sc, float oprCutoff, String[] cohorts) {
@@ -74,20 +76,17 @@ public class ExportOprFilter {
                 oprCutoff);
     }
 
-
-    public boolean isValidOpr(Result value) {
-        return isValidOpr(value, extractChromosome(value));
+    @Override
+    public boolean pass(Result value, Variant variant) {
+        return pass(value, variant.getChromosome());
     }
 
-    private String extractChromosome(Result value) {
-        return toChromosomeFunction.apply(value);
+    @Override
+    public boolean hasFilters() {
+        return chromOprFilters.values().stream().mapToInt(v -> v.size()).sum() > 0;
     }
 
-    public boolean isValidOpr(Result value, Variant variant) {
-        return isValidOpr(value, variant.getChromosome());
-    }
-
-    public boolean isValidOpr(Result value, String chromosome) {
+    public boolean pass(Result value, String chromosome) {
         if (this.chromOprFilters.isEmpty()) {
             return true;
         }

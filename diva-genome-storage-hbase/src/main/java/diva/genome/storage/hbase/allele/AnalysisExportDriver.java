@@ -28,14 +28,6 @@ public class AnalysisExportDriver extends AbstractAlleleDriver {
     public static final String CONFIG_ANALYSIS_EXPORT_PATH = "diva.genome.storage.allele.file";
     public static final String CONFIG_ANALYSIS_EXPORT_GENOTYPE = "diva.genome.storage.allele.genotype";
     public static final String CONFIG_ANALYSIS_EXPORT_COHORTS = "diva.genome.storage.allele.cohorts";
-    public static final String CONFIG_ANALYSIS_EXPORT_MAF_COHORTS = "diva.genome.storage.allele.maf.cohorts";
-    public static final String CONFIG_ANALYSIS_EXPORT_MAF_VALUE = "diva.genome.storage.allele.maf.cutoff";
-    public static final String CONFIG_ANALYSIS_OPR_COHORTS = "diva.genome.storage.allele.opr.cohorts";
-    public static final String CONFIG_ANALYSIS_OPR_VALUE = "diva.genome.storage.allele.opr.cutoff";
-    public static final String CONFIG_ANALYSIS_OPR_Y_COHORTS = "diva.genome.storage.allele.opr.y.cohorts";
-    public static final String CONFIG_ANALYSIS_OPR_Y_VALUE = "diva.genome.storage.allele.opr.y.cutoff";
-    public static final String CONFIG_ANALYSIS_OPR_X_COHORTS = "diva.genome.storage.allele.opr.x.cohorts";
-    public static final String CONFIG_ANALYSIS_OPR_X_VALUE = "diva.genome.storage.allele.opr.x.cutoff";
     private String outAvroFile;
 
     @Override
