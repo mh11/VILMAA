@@ -51,7 +51,7 @@ public class ExportPosRefAltFilter implements IHbaseVariantFilter {
 
     public void loadFile(String file) {
         getLog().info("Load file " + file);
-        Variant variant = new Variant("n", -1, "n", "n");
+        Variant variant = new Variant("n", 10, "n", "n");
         try(BufferedReader in = new BufferedReader(new FileReader(file))) {
             String line = null;
             while(!Objects.isNull(line = in.readLine())) {
