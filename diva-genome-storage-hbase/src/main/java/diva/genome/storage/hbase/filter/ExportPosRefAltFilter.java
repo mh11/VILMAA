@@ -1,5 +1,6 @@
 package diva.genome.storage.hbase.filter;
 
+import diva.genome.storage.hbase.VariantHbaseUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Result;
@@ -10,9 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * Created by mh719 on 07/12/2017.
@@ -21,7 +20,7 @@ public class ExportPosRefAltFilter implements IHbaseVariantFilter {
     public static final String CONFIG_ALLELE_FILTER_POSREFALT="diva.genome.storage.allele.posrefalt.file";
 
     private Logger log = LoggerFactory.getLogger(this.getClass());
-    private volatile Map<String,Map<Integer,String[]>> positions = new HashMap<>();
+    private volatile Map<String,Map<Integer,Map<String,Set<String>>>> positions = new HashMap<>();
 
     public ExportPosRefAltFilter() {
         // empty
@@ -36,8 +35,23 @@ public class ExportPosRefAltFilter implements IHbaseVariantFilter {
         return filter;
     }
 
+    private void normalise(Variant variant) {
+
+        // remove leading character for INDELs.
+        if (variant.getReference().charAt(0) == variant.getAlternate().charAt(0)) {
+            variant.setReference(variant.getReference().substring(1));
+            variant.setAlternate(variant.getAlternate().substring(1));
+            variant.setStart(variant.getStart()+1);
+        }
+        // recalc END
+        variant.setEnd(variant.getStart() + variant.getLengthReference() - 1);
+        // Infer type
+        VariantHbaseUtil.inferAndSetType(variant);
+    }
+
     public void loadFile(String file) {
         getLog().info("Load file " + file);
+        Variant variant = new Variant("n", -1, "n", "n");
         try(BufferedReader in = new BufferedReader(new FileReader(file))) {
             String line = null;
             while(!Objects.isNull(line = in.readLine())) {
@@ -49,12 +63,18 @@ public class ExportPosRefAltFilter implements IHbaseVariantFilter {
                 if (split.length != 4) {
                     throw new IOException("Expected 4 fields, only found " + split.length + " for >" + line + "<");
                 }
-                String chrom = split[0];
-                Integer pos = Integer.valueOf(split[1]);
-                String ref = new String(split[2].toCharArray());
-                String alt = new String(split[3].toCharArray());
-                positions.computeIfAbsent(chrom, k -> new HashMap<>())
-                        .put(pos, new String[]{ref,alt});
+                variant.setChromosome(split[0]);
+                variant.setStart(Integer.valueOf(split[1]));
+                variant.setReference(new String(split[2].toCharArray()).toUpperCase());
+                variant.setAlternate(new String(split[3].toCharArray()).toUpperCase());
+
+                // set type and remove leading base for INDELs.
+                normalise(variant);
+
+                positions.computeIfAbsent(variant.getChromosome(), k -> new HashMap<>())
+                        .computeIfAbsent(variant.getStart(), k -> new HashMap<>())
+                        .computeIfAbsent(variant.getReference(), k -> new HashSet<>())
+                        .add(variant.getAlternate());
             }
         } catch (IOException e) {
             throw new IllegalStateException("Problems loading file " + file, e);
@@ -65,16 +85,20 @@ public class ExportPosRefAltFilter implements IHbaseVariantFilter {
 
     @Override
     public boolean pass(Result value, Variant variant) {
-        Map<Integer, String[]> posMap = positions.get(variant.getChromosome());
+        Map<Integer, Map<String, Set<String>>> posMap = positions.get(variant.getChromosome());
         if (Objects.isNull(posMap)) {
             return false;
         }
-        String[] alts = posMap.get(variant.getStart());
+        Map<String, Set<String>> vars = posMap.get(variant.getStart());
+        if (Objects.isNull(vars)) {
+            return false;
+        }
+
+        Set<String> alts = vars.get(variant.getReference());
         if (Objects.isNull(alts)) {
             return false;
         }
-        return StringUtils.equals(alts[0], variant.getReference())
-                && StringUtils.equals(alts[1], variant.getAlternate());
+        return alts.contains(variant.getAlternate());
     }
 
     @Override
