@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -29,8 +30,8 @@ public class ExportVariantType implements IHbaseVariantFilter {
 
     public static ExportVariantType build(Configuration conf) {
         ExportVariantType filter = new ExportVariantType();
-        filter.addFilter(conf.getStrings(CONFIG_ANALYSIS_EXPORT_TYPE_INCLUDE, StudyEntry.DEFAULT_COHORT), true);
-        filter.addFilter(conf.getStrings(CONFIG_ANALYSIS_EXPORT_TYPE_EXCLUDE, StudyEntry.DEFAULT_COHORT), false);
+        filter.addFilter(conf.getStrings(CONFIG_ANALYSIS_EXPORT_TYPE_INCLUDE, null), true);
+        filter.addFilter(conf.getStrings(CONFIG_ANALYSIS_EXPORT_TYPE_EXCLUDE, null), false);
         return filter;
     }
 
@@ -39,7 +40,7 @@ public class ExportVariantType implements IHbaseVariantFilter {
     }
 
     public void addFilter(String[] types, boolean isInclude) {
-        if (null == types || types.length == 0) {
+        if (Objects.isNull(types) || types.length == 0) {
             return; // do nothing
         }
         Set<VariantType> varTypes = translate(types);
