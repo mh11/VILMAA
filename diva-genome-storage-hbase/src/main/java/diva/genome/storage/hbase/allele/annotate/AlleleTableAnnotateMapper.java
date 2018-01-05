@@ -116,7 +116,7 @@ public class AlleleTableAnnotateMapper extends AbstractHBaseMapReduce<ImmutableB
     protected void map(ImmutableBytesWritable key, Result value, Context context) throws IOException, InterruptedException {
         String hexBytes = Bytes.toHex(key.get());
         Cell[] cells = value.rawCells();
-        if (!isMetaRow(key, value)) {
+        if (isMetaRow(key, value)) {
             return; // ignore META row
         }
         try {
