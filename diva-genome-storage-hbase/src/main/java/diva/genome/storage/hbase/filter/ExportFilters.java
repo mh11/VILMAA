@@ -23,6 +23,7 @@ public class ExportFilters implements IHbaseVariantFilter {
         filters.addFilter(ExportPosRefAltFilter.build(conf));
         filters.addFilter(ExportOprFilter.build(sc, conf, columnFamily));
         filters.addFilter(ExportMafFilter.build(sc, conf, columnFamily));
+        filters.addFilter(ExportVariantType.build(conf));
         return filters;
     }
 
