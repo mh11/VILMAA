@@ -63,8 +63,14 @@ public class ExportVariantType implements IHbaseVariantFilter {
     @Override
     public boolean pass(Result value, Variant variant) {
         VariantType type = variant.getType();
-        if (includes.contains(type)) return true; // if in INCLUDE list - OK
-        if (!excludes.contains(type)) return true; // if NOT in EXCLUDE - OK
+        if (!includes.isEmpty()) {
+            if (includes.contains(type)) return true; // if in INCLUDE list - OK
+            return false;
+        }
+        if (!excludes.isEmpty()) {
+            if (!excludes.contains(type)) return true; // if NOT in EXCLUDE - OK
+            return false;
+        }
         return false;  // IF NOT included and excluded
     }
 
