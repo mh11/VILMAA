@@ -22,10 +22,13 @@ import org.opencb.opencga.storage.hadoop.variant.converters.annotation.HBaseToVa
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static diva.genome.storage.hbase.allele.annotate.AlleleTableAnnotateDriver.CONFIG_ANNOTATE_BATCH;
 import static diva.genome.storage.hbase.allele.annotate.AlleleTableAnnotateDriver.CONFIG_ANNOTATE_FORCE;
+import static org.opencb.opencga.storage.core.variant.annotation.VariantAnnotationManager.ANNOTATION_SOURCE;
+import static org.opencb.opencga.storage.core.variant.annotation.annotators.AbstractCellBaseVariantAnnotator.ANNOTATOR_CELLBASE_EXCLUDE;
 import static org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper.VariantColumn.FULL_ANNOTATION;
 
 /**
@@ -57,6 +60,12 @@ public class AlleleTableAnnotateMapper extends AbstractHBaseMapReduce<ImmutableB
         String configFile = "storage-configuration.yml";
         String storageEngine = "hadoop"; //
         ObjectMap options = new ObjectMap(); // empty
+        if (!Objects.isNull(context.getConfiguration().get(ANNOTATOR_CELLBASE_EXCLUDE, null))) {
+            options.put(ANNOTATOR_CELLBASE_EXCLUDE, context.getConfiguration().get(ANNOTATOR_CELLBASE_EXCLUDE));
+        }
+        if (!Objects.isNull(context.getConfiguration().get(ANNOTATION_SOURCE, null))) {
+            options.put(ANNOTATION_SOURCE, context.getConfiguration().get(ANNOTATION_SOURCE));
+        }
         try {
             StorageConfiguration storageConfiguration = StorageConfiguration.load(
                     StorageConfiguration.class.getClassLoader().getResourceAsStream(configFile));
