@@ -29,6 +29,7 @@ import static diva.genome.storage.hbase.allele.annotate.AlleleTableAnnotateDrive
 import static diva.genome.storage.hbase.allele.annotate.AlleleTableAnnotateDriver.CONFIG_ANNOTATE_FORCE;
 import static org.opencb.opencga.storage.core.variant.annotation.VariantAnnotationManager.ANNOTATION_SOURCE;
 import static org.opencb.opencga.storage.core.variant.annotation.annotators.AbstractCellBaseVariantAnnotator.ANNOTATOR_CELLBASE_EXCLUDE;
+import static org.opencb.opencga.storage.core.variant.annotation.annotators.AbstractCellBaseVariantAnnotator.ANNOTATOR_CELLBASE_INCLUDE;
 import static org.opencb.opencga.storage.hadoop.variant.index.phoenix.VariantPhoenixHelper.VariantColumn.FULL_ANNOTATION;
 
 /**
@@ -62,6 +63,9 @@ public class AlleleTableAnnotateMapper extends AbstractHBaseMapReduce<ImmutableB
         ObjectMap options = new ObjectMap(); // empty
         if (!Objects.isNull(context.getConfiguration().get(ANNOTATOR_CELLBASE_EXCLUDE, null))) {
             options.put(ANNOTATOR_CELLBASE_EXCLUDE, context.getConfiguration().get(ANNOTATOR_CELLBASE_EXCLUDE));
+        }
+        if (!Objects.isNull(context.getConfiguration().get(ANNOTATOR_CELLBASE_INCLUDE, null))) {
+            options.put(ANNOTATOR_CELLBASE_INCLUDE, context.getConfiguration().get(ANNOTATOR_CELLBASE_INCLUDE));
         }
         if (!Objects.isNull(context.getConfiguration().get(ANNOTATION_SOURCE, null))) {
             options.put(ANNOTATION_SOURCE, context.getConfiguration().get(ANNOTATION_SOURCE));
