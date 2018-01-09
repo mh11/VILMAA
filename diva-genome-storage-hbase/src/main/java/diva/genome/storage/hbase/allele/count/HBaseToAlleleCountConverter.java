@@ -12,9 +12,8 @@ import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -30,6 +29,27 @@ public class HBaseToAlleleCountConverter {
     public static final char FILTER_PASS_CHAR = 'P';
     public static final char VARIANT_PREFIX_CHAR= 'V';
 
+    private volatile Set<Integer> validIds = new HashSet<>();
+    private volatile boolean useIdFilter = false;
+
+    public HBaseToAlleleCountConverter() {
+        this.useIdFilter = false;
+    }
+
+    /**
+     * Add valid IDs to filter on. Default: all IDs are allowed. Once an ID list is provided,
+     * only IDs in the list are returned / added.
+     * @param validIds
+     */
+    public void addValidIds(Collection<Integer> validIds) {
+        this.validIds.addAll(validIds);
+        this.useIdFilter = true;
+    }
+
+    public void setValidIds(Collection<Integer> validIds) {
+        this.validIds.clear();
+        this.addValidIds(validIds);
+    }
 
     public AlleleCountPosition convert(ResultSet resultSet) throws SQLException {
         AlleleCountPosition calc = new AlleleCountPosition();
@@ -72,6 +92,10 @@ public class HBaseToAlleleCountConverter {
     }
 
     public static List<Integer> getValueAsList(byte[] bytes) throws SQLException {
+        return getValueAsList(bytes, (i) -> true);
+    }
+
+    public static List<Integer> getValueAsList(byte[] bytes, Predicate<Integer> filter) throws SQLException {
         Array abc = (Array) PUnsignedIntArray.INSTANCE.toObject(bytes);
         int[] coll = null;
         if (null != abc) {
@@ -80,29 +104,33 @@ public class HBaseToAlleleCountConverter {
         if (null == coll) {
             coll = new int[0];
         }
-        return Arrays.stream(coll).boxed().collect(Collectors.toList());
+        return Arrays.stream(coll).boxed().filter(i -> filter.test(i)).collect(Collectors.toList());
     }
 
+    private List<Integer> getFilteredValues(byte[] bytes) throws SQLException {
+        if (this.useIdFilter) return getValueAsList(bytes, (i) -> this.validIds.contains(i));
+        return getValueAsList(bytes);
+    }
 
     private void addAlleleCounts(AlleleCountPosition calc, String columnName, Supplier<byte[]> byteSupplier)
             throws SQLException {
         switch (columnName.charAt(0)) {
             case FILTER_FAIL_CHAR:
-                getValueAsList(byteSupplier.get()).forEach(i -> calc.getNotPass().add(i));
+                getFilteredValues(byteSupplier.get()).forEach(i -> calc.getNotPass().add(i));
                 break;
             case REFERENCE_PREFIX_CHAR:
                 Integer allele = Integer.valueOf(columnName.substring(1));
-                calc.getReference().put(allele, getValueAsList(byteSupplier.get()));
+                calc.getReference().put(allele, getFilteredValues(byteSupplier.get()));
                 break;
             case VARIANT_PREFIX_CHAR:
                 if (StringUtils.contains(columnName, '_')) {
                     String[] split = columnName.substring(1).split("_", 2);
                     allele = Integer.valueOf(split[1]);
                     calc.getAltMap().computeIfAbsent(split[0], k -> new HashMap<>())
-                            .put(allele, getValueAsList(byteSupplier.get()));
+                            .put(allele, getFilteredValues(byteSupplier.get()));
                 } else {
                     allele = Integer.valueOf(columnName.substring(1));
-                    calc.getAlternate().put(allele, getValueAsList(byteSupplier.get()));
+                    calc.getAlternate().put(allele, getFilteredValues(byteSupplier.get()));
                 }
                 break;
             default:

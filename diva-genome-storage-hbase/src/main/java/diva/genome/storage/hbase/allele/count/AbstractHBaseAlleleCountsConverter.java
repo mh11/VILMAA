@@ -134,6 +134,7 @@ public abstract class AbstractHBaseAlleleCountsConverter<T> {
 
     public void setReturnSampleIds(Collection<Integer> sampleIds) {
         this.returnedSamples.clear();
+        this.alleleCountConverter.setValidIds(sampleIds);
         BiMap<Integer, String> map = StudyConfiguration.getIndexedSamples(this.studyConfiguration).inverse();
         for (Integer sid : sampleIds) {
             String s = map.get(sid);
