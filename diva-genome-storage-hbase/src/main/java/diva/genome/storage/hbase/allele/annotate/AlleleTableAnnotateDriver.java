@@ -29,6 +29,7 @@ public class AlleleTableAnnotateDriver extends AbstractAlleleDriver {
 
     @Override
     protected void parseAndValidateParameters() {
+        super.parseAndValidateParameters();
         int parallel = getConf().getInt(CONFIG_ANNOTATE_PARALLEL, 5);
         getConf().setInt("mapreduce.job.running.map.limit", parallel);
         getConf().setLong("phoenix.upsert.batch.size", 200L);
