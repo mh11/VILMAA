@@ -44,15 +44,16 @@ public class ExportOprFilter implements IHbaseVariantFilter {
 
     public static ExportOprFilter build(StudyConfiguration sc, Configuration conf, byte[] columnFamily) {
         ExportOprFilter filter = new ExportOprFilter(columnFamily);
+        String[] emtpyArray = {};
         filter.addDefaultOprFilter(sc,
-                conf.getFloat(CONFIG_ANALYSIS_OPR_VALUE, 0.99f),
-                conf.getStrings(CONFIG_ANALYSIS_OPR_COHORTS, StudyEntry.DEFAULT_COHORT));
+                conf.getFloat(CONFIG_ANALYSIS_OPR_VALUE, -1f),
+                conf.getStrings(CONFIG_ANALYSIS_OPR_COHORTS, emtpyArray));
         filter.addChromosomeOprFilter(CHR_Y, sc,
-                conf.getFloat(CONFIG_ANALYSIS_OPR_Y_VALUE, 0.99f),
-                conf.getStrings(CONFIG_ANALYSIS_OPR_Y_COHORTS, new String[]{}));
+                conf.getFloat(CONFIG_ANALYSIS_OPR_Y_VALUE, -1f),
+                conf.getStrings(CONFIG_ANALYSIS_OPR_Y_COHORTS, emtpyArray));
         filter.addChromosomeOprFilter(CHR_X, sc,
-                conf.getFloat(CONFIG_ANALYSIS_OPR_X_VALUE, 0.99f),
-                conf.getStrings(CONFIG_ANALYSIS_OPR_X_COHORTS, new String[]{}));
+                conf.getFloat(CONFIG_ANALYSIS_OPR_X_VALUE, -1f),
+                conf.getStrings(CONFIG_ANALYSIS_OPR_X_COHORTS, emtpyArray));
         return filter;
     }
 
