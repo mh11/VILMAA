@@ -13,7 +13,8 @@
 <!--        <opencga.version>1.0.0-rc4</opencga.version> -->
         <opencga.version>1.0.0-final</opencga.version>
         <biodata.version>1.0.0-SNAPSHOT</biodata.version>
-        <cellbase.version>4.5.0-SNAPSHOT</cellbase.version>
+        <!--<cellbase.version>4.5.0-SNAPSHOT</cellbase.version>-->
+        <cellbase.version>4.5.3</cellbase.version>
 <!--        <java-common-libs.version>3.4.0</java-common-libs.version> -->
         <java-common-libs.version>3.4.1-SNAPSHOT</java-common-libs.version>
         <hpg-bigdata.version>1.0.0-beta1</hpg-bigdata.version>
