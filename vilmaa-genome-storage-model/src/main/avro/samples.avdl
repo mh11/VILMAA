@@ -1,0 +1,9 @@
+@namespace("vilmaa.genome.storage.models.samples.avro")
+
+protocol Samples {
+
+    record SampleCollection {
+        @java-key-class("java.lang.Integer")map<string> samples;
+        map<array<int>> cohorts;
+    }
+}

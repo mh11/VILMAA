@@ -1,0 +1,12 @@
+@namespace("vilmaa.genome.analysis.models.avro")
+
+protocol VilmaaAnalysis {
+
+   record GeneSummary {
+        string ensemblGeneId;
+        string ensemblTranscriptId;
+        array<int> cases;
+        array<int> controls;
+   }
+
+}

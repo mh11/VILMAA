@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package protobuf.vilmaagenome;
+
+option java_outer_classname = "AlleleCountHBase";
+option java_generate_equals_and_hash = true;
+option java_multiple_files = true;
+option java_package = "vilmaa.genome.storage.hbase.allele.models.protobuf";
+
+
+
+message SampleList {
+    repeated uint32 sampleIds = 1 [packed = true];
+}
+
+message AlleleMap {
+    map<string, SampleList> alternate = 1;
+}
+
+message AlternateCount {
+    map<string, AlleleMap> altMap = 1;
+}
+
+message ReferenceCountHBaseProto {
+    uint32 passCount = 1;
+    uint32 homRefCount = 2;
+    SampleList notPass = 3;
+    AlleleMap reference = 4;
+    AlternateCount alternates = 6;
+}
+
+message PositionCountHBaseProto {
+    uint32 start = 1;
+    string variantId = 2;
+    ReferenceCountHBaseProto alleleCount = 3;
+}
+
+
+enum AlleleType {
+    SNV = 0;
+    MNV = 1;
+    INSERTION = 2;
+    DELETION = 3;
+    NO_VARIATION = 4;
+}
+
+message ARSEntry {
+    map<sint32, ARSEntry> entry = 1;
+    repeated uint32 sampleIds = 2;
+    map<string, ARSEntry> vars = 3;
+}
+
+message AlleleRegion {
+    map<bool, ARSEntry> reference = 1;
+    map<bool, ARSEntry> noCall = 2;
+    map<bool, ARSEntry> variation = 3;
+}
+
+
+

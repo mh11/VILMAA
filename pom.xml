@@ -3,12 +3,12 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>diva-genome</groupId>
-    <artifactId>diva-genome</artifactId>
+    <groupId>vilmaa-genome</groupId>
+    <artifactId>vilmaa-genome</artifactId>
     <packaging>pom</packaging>
     <version>0.0.1-SNAPSHOT</version>
     <properties>
-        <diva.version>0.0.1-SNAPSHOT</diva.version>
+        <vilmaa.version>0.0.1-SNAPSHOT</vilmaa.version>
         <java.version>1.8</java.version>
 <!--        <opencga.version>1.0.0-rc4</opencga.version> -->
         <opencga.version>1.0.0-final</opencga.version>
@@ -37,10 +37,10 @@
     </developers>
 
     <modules>
-        <module>diva-genome-storage-model</module>
-        <module>diva-genome-storage-hbase</module>
-        <module>diva-genome-analysis-spark</module>
-<!--        <module>diva-genome-analysis-mapreduce</module> -->
+        <module>vilmaa-genome-storage-model</module>
+        <module>vilmaa-genome-storage-hbase</module>
+        <!--<module>vilmaa-genome-analysis-spark</module>-->
+<!--        <module>vilmaa-genome-analysis-mapreduce</module> -->
     </modules>
 
 
@@ -135,9 +135,9 @@
                 <version>5.5</version>
             </dependency>
             <dependency>
-                <groupId>diva-genome</groupId>
-                <artifactId>diva-genome-storage-model</artifactId>
-                <version>${diva.version}</version>
+                <groupId>vilmaa-genome</groupId>
+                <artifactId>vilmaa-genome-storage-model</artifactId>
+                <version>${vilmaa.version}</version>
             </dependency>
             <!-- OpenCGA  -->
             <dependency>
