@@ -12,6 +12,7 @@ import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.opencb.biodata.models.variant.Variant;
@@ -124,6 +125,9 @@ public class AlleleCountCleanupDriver extends Configured implements Tool {
                 job,
                 true
         );
+        job.setNumReduceTasks(0);
+        job.setOutputFormatClass(NullOutputFormat.class);
+
         Thread hook = new Thread(() -> {
             try {
                 if (!job.isComplete()) {
