@@ -68,6 +68,7 @@ public class AlleleCountCleanupDriver extends Configured implements Tool {
             String vilmaaVAR = "VILMAA_VAR";
             if (Bytes.startsWith(key.get(), studiesRow)) {
                 context.getCounter(vilmaaPOS, "META_ROW").increment(1);
+                return;
             }
             Variant variant = helper.extractVariantFromVariantRowKey(key.get());
             String reference = Objects.isNull(variant.getReference()) ? "" : variant.getReference();
