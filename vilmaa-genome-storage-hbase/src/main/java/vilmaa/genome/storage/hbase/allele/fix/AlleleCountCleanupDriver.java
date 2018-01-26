@@ -173,8 +173,8 @@ public class AlleleCountCleanupDriver extends Configured implements Tool {
     }
 
     public static void main(String[] args) {
-        if (args.length != 2) {
-            throw new IllegalArgumentException("Expected arguments: <table_name> <valid_regions.bed>");
+        if (args.length < 2) {
+            throw new IllegalArgumentException("Expected arguments: <table_name> <valid_regions.bed> [<delete true/false>]");
         }
         try {
             AlleleCountCleanupDriver driver = new AlleleCountCleanupDriver();
