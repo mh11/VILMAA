@@ -3,6 +3,7 @@ package vilmaa.genome.storage.hbase.allele.fix;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
@@ -32,16 +33,20 @@ import java.util.*;
 public class AlleleCountCleanupDriver extends Configured implements Tool {
 
     private static final String BED_VALID_FILE = "vilmaa.fix.duster.bed.valid";
+    public static final String DO_DELETE = "DO_DELETE";
 
     public static class Duster extends TableMapper<ImmutableBytesWritable, Mutation> {
         private final Logger log = LoggerFactory.getLogger(Duster.class);
         private volatile Map<String, NavigableMap<Integer, Integer>> regions = new HashMap<>();
         private volatile GenomeHelper helper = null;
         private byte[] studiesRow;
+        private Boolean doDelete = false;
 
         @Override
         protected void setup(Context context) throws IOException, InterruptedException {
             super.setup(context);
+            doDelete = context.getConfiguration().getBoolean(DO_DELETE, false);
+            log.info("Set delete to: " + doDelete);
             helper = new GenomeHelper(context.getConfiguration());
             studiesRow = helper.generateVariantRowKey(GenomeHelper.DEFAULT_METADATA_ROW_KEY, 0);
             File bedFile = new File(context.getConfiguration().get(BED_VALID_FILE,null));
@@ -60,6 +65,16 @@ public class AlleleCountCleanupDriver extends Configured implements Tool {
             }
             int sum = this.regions.values().stream().mapToInt(t -> t.size()).sum();
             log.info("Loaded " + sum + " regions ...");
+        }
+
+        private void deleteEntry(ImmutableBytesWritable key, Context context) throws IOException, InterruptedException {
+            context.getCounter("VILMAA_DELETE",doDelete.toString()).increment(1);
+            if (!doDelete) {
+                return; // ignore - don't delete
+            }
+            ImmutableBytesWritable keyW = new ImmutableBytesWritable(key.get());
+            Delete delete = new Delete(keyW.get());
+            context.write(keyW, delete);
         }
 
         @Override
@@ -84,11 +99,13 @@ public class AlleleCountCleanupDriver extends Configured implements Tool {
             Integer entryKey = positions.floorKey(start);
             if (Objects.isNull(entryKey)) {
                 context.getCounter(vilmaaGroup, "REGION_KEY_NULL").increment(1);
+                deleteEntry(key, context);
                 return;
             }
             Integer entryValue = positions.get(entryKey);
             if (entryValue < start) {
                 context.getCounter(vilmaaGroup, "OUT_OF_REGION").increment(1);
+                deleteEntry(key, context);
                 return;
             }
             context.getCounter(vilmaaGroup, "VALID_POSITION").increment(1);
@@ -99,6 +116,10 @@ public class AlleleCountCleanupDriver extends Configured implements Tool {
     public int run(String[] strings) throws Exception {
         String tableName = strings[0];
         String bedPath = strings[1];
+        Boolean doDelete = false;
+        if (strings.length > 2) {
+            doDelete = Boolean.valueOf(strings[2]);
+        }
         File bedFile = new File(bedPath);
         // check File
         if (!bedFile.exists()) throw new IOException("File doesn't exist: " + bedFile);
@@ -107,6 +128,7 @@ public class AlleleCountCleanupDriver extends Configured implements Tool {
         if (bedFile.length() < 1) throw new IOException("File is empty: " + bedFile);
         // set config
         getConf().set(BED_VALID_FILE, bedFile.getAbsolutePath());
+        getConf().setBoolean(DO_DELETE, doDelete);
         // create Job
         Job job = Job.getInstance(getConf(), "Duster - clear up mess");
         job.getConfiguration().set("mapreduce.job.user.classpath.first", "true");
@@ -126,8 +148,12 @@ public class AlleleCountCleanupDriver extends Configured implements Tool {
                 job,
                 true
         );
+        if (doDelete) {
+            TableMapReduceUtil.initTableReducerJob(tableName, null, job);
+        } else {
+            job.setOutputFormatClass(NullOutputFormat.class);
+        }
         job.setNumReduceTasks(0);
-        job.setOutputFormatClass(NullOutputFormat.class);
 
         Thread hook = new Thread(() -> {
             try {
