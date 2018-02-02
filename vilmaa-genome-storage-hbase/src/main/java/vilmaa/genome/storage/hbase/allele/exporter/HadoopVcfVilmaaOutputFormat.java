@@ -37,6 +37,8 @@ public class HadoopVcfVilmaaOutputFormat extends HadoopVcfOutputFormat {
     protected static final String CR = "CR";
     protected static final String PR = "PR";
     protected static final String HWE = "HWE";
+    public static final String VILMAA_ALLELE_OUTPUT_VCF_ANNOTATION_KEY = "vilmaa.allele.output.vcf_annotation_key";
+    public static final String VILMAA_ALLELE_OUTPUT_VCF_ANNOTATION = "vilmaa.allele.output.vcf_annotation";
 
     public HadoopVcfVilmaaOutputFormat() {
         // do nothing
@@ -61,8 +63,8 @@ public class HadoopVcfVilmaaOutputFormat extends HadoopVcfOutputFormat {
         QueryOptions options = new QueryOptions();
 
         // add possible variant annotations
-        if (!Objects.isNull(helper.getConf().get("vilmaa.allele.output.vcf_annotation", null))){
-            options.put("annotations", helper.getConf().get("vilmaa.allele.output.vcf_annotation", ""));
+        if (!Objects.isNull(helper.getConf().get(VILMAA_ALLELE_OUTPUT_VCF_ANNOTATION, null))){
+            options.put("annotations", helper.getConf().get(VILMAA_ALLELE_OUTPUT_VCF_ANNOTATION, ""));
         }
 
         VariantVcfDataWriter writer = new VariantVcfDataWriter(sc, source, fileOut, options);
@@ -73,6 +75,8 @@ public class HadoopVcfVilmaaOutputFormat extends HadoopVcfOutputFormat {
 
         // set attributes
         writer.setCohortIds(cohortIds);
+        writer.addAttributeKeyMapping(VariantVcfDataWriter.CSQ,
+                helper.getConf().get(VILMAA_ALLELE_OUTPUT_VCF_ANNOTATION_KEY, "ANN"));
 
         /* Headers */
         List<VCFHeaderLine> customHeader = new ArrayList<>();
