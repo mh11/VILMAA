@@ -1,7 +1,7 @@
 package vilmaa.genome.storage.hbase.allele;
 
 import vilmaa.genome.storage.hbase.allele.exporter.AlleleTableToVariantMapper;
-import vilmaa.genome.storage.hbase.allele.exporter.HadoopVcfVilmaOutputFormat;
+import vilmaa.genome.storage.hbase.allele.exporter.HadoopVcfVilmaaOutputFormat;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.fs.Path;
@@ -56,7 +56,7 @@ public class AlleleTableExportDriver extends VariantTableExportDriver {
                 AvroJob.setOutputKeySchema(job, VariantAvro.getClassSchema()); // Set schema
                 break;
             case VCF:
-                job.setOutputFormatClass(HadoopVcfVilmaOutputFormat.class);
+                job.setOutputFormatClass(HadoopVcfVilmaaOutputFormat.class);
                 break;
             default:
                 throw new IllegalStateException("Type not known: " + this.type);

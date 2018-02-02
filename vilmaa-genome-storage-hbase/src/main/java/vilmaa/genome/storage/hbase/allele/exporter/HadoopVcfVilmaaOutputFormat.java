@@ -1,5 +1,9 @@
 package vilmaa.genome.storage.hbase.allele.exporter;
 
+import org.opencb.commons.datastore.core.QueryOptions;
+import org.opencb.opencga.storage.core.variant.adaptors.VariantSourceDBAdaptor;
+import org.opencb.opencga.storage.hadoop.variant.adaptors.HadoopVariantSourceDBAdaptor;
+import org.opencb.opencga.storage.hadoop.variant.exporters.VariantTableExportDriver;
 import vilmaa.genome.analysis.models.variant.stats.VariantStatistics;
 import vilmaa.genome.storage.hbase.allele.AnalysisExportDriver;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -25,7 +29,7 @@ import java.util.stream.Collectors;
  * Add additional custom fields to VCF output that includes OPR, CR, PR and HWE.
  * Created by mh719 on 31/03/2017.
  */
-public class HadoopVcfVilmaOutputFormat extends HadoopVcfOutputFormat {
+public class HadoopVcfVilmaaOutputFormat extends HadoopVcfOutputFormat {
     private static final DecimalFormat DECIMAL_FORMAT_7 = new DecimalFormat("#.#######");
     private static final DecimalFormat DECIMAL_FORMAT_3 = new DecimalFormat("#.###");
 
@@ -34,7 +38,7 @@ public class HadoopVcfVilmaOutputFormat extends HadoopVcfOutputFormat {
     protected static final String PR = "PR";
     protected static final String HWE = "HWE";
 
-    public HadoopVcfVilmaOutputFormat() {
+    public HadoopVcfVilmaaOutputFormat() {
         // do nothing
     }
 
@@ -51,7 +55,21 @@ public class HadoopVcfVilmaOutputFormat extends HadoopVcfOutputFormat {
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 
         // init writer
-        VariantVcfDataWriter writer = super.prepareVcfWriter(helper, sc, failed, fileOut);
+        boolean withGenotype = helper.getConf()
+                .getBoolean(VariantTableExportDriver.CONFIG_VARIANT_TABLE_EXPORT_GENOTYPE, false);
+        VariantSourceDBAdaptor source = new HadoopVariantSourceDBAdaptor(helper);
+        QueryOptions options = new QueryOptions();
+
+        // add possible variant annotations
+        if (!Objects.isNull(helper.getConf().get("vilmaa.allele.output.vcf_annotation", null))){
+            options.put("annotations", helper.getConf().get("vilmaa.allele.output.vcf_annotation", ""));
+        }
+
+        VariantVcfDataWriter writer = new VariantVcfDataWriter(sc, source, fileOut, options);
+        writer.setExportGenotype(withGenotype);
+        if (null != failed) {
+            writer.setConverterErrorListener(failed);
+        }
 
         // set attributes
         writer.setCohortIds(cohortIds);

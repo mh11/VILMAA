@@ -3,7 +3,7 @@ package vilmaa.genome.storage.hbase.allele.count;
 import com.google.common.collect.BiMap;
 import vilmaa.genome.storage.hbase.allele.AbstractLocalRunner;
 import vilmaa.genome.storage.hbase.allele.count.converter.HBaseAlleleCountsToVariantConverter;
-import vilmaa.genome.storage.hbase.allele.exporter.HadoopVcfVilmaOutputFormat;
+import vilmaa.genome.storage.hbase.allele.exporter.HadoopVcfVilmaaOutputFormat;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -119,7 +119,7 @@ public class GvcfToVariantRunner extends AbstractLocalRunner {
         variantConverter.setStudyNameAsStudyId(true);
 
         try (OutputStream out = new FileOutputStream(outVCF)) {
-            HadoopVcfVilmaOutputFormat outputFormat = new HadoopVcfVilmaOutputFormat();
+            HadoopVcfVilmaaOutputFormat outputFormat = new HadoopVcfVilmaaOutputFormat();
             vcfDataWriter = outputFormat.prepareVcfWriter(
                     getHelper(), returnStudyConf, (a, b) -> {}, out);
             vcfDataWriter.setExportGenotype(true);
