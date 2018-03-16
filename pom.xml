@@ -23,7 +23,7 @@
     <groupId>vilmaa-genome</groupId>
     <artifactId>vilmaa-genome</artifactId>
     <packaging>pom</packaging>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1/version>
     <properties>
         <vilmaa.version>0.0.1-SNAPSHOT</vilmaa.version>
         <java.version>1.8</java.version>
