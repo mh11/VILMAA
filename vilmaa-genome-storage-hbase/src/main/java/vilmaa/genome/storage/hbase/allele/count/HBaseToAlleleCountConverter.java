@@ -121,7 +121,7 @@ public class HBaseToAlleleCountConverter {
         if (null == coll) {
             coll = new int[0];
         }
-        return Arrays.stream(coll).boxed().filter(i -> filter.test(i)).collect(Collectors.toList());
+        return new ArrayList<>(Arrays.stream(coll).boxed().filter(i -> filter.test(i)).collect(Collectors.toSet()));
     }
 
     private List<Integer> getFilteredValues(byte[] bytes) throws SQLException {
